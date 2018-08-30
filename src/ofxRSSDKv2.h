@@ -67,12 +67,10 @@ namespace ofxRSSDK
 		bool update();
 		bool stop();
 
-		bool draw();
-
-		bool RSDevice::copyFrame(rs2::video_frame *source, ofPixels *target);
+		bool draw(float width, float height, float offset, float pitch, float yaw, ofTexture texture);
 
 		const ofPixels&	getRgbFrame();
-		const ofShortPixels&	getDepthFrame();
+		const ofPixels&	getDepthFrame();
 		const ofPixels&	getDepth8uFrame();
 		const ofPixels&	getColorMappedToDepthFrame();
 		const ofPixels&	getDepthMappedToColorFrame();
@@ -115,7 +113,7 @@ namespace ofxRSSDK
 		const int		getRgbHeight() { return mRgbSize.y; }
 
 	private:
-		void			updatePointCloud();
+		void			updatePointCloud(rs2::frame depthFrame, rs2::video_frame texture, ofPixels colors);
 
 		bool			mIsInit,
 			mIsRunning,
@@ -135,7 +133,7 @@ namespace ofxRSSDK
 		ofPixels		mDepth8uFrame;
 		ofPixels		mColorToDepthFrame;
 		ofPixels		mDepthToColorFrame;
-		ofShortPixels		mDepthFrame;
+		ofPixels		mDepthFrame;
 
 		// Declare depth colorizer for pretty visualization of depth data
 		rs2::colorizer rs2Color_map;
@@ -154,7 +152,10 @@ namespace ofxRSSDK
 		// current frame
 		rs2::frameset rs2FrameSet;
 
-		vector<ofVec3f>			mPointCloud;
+		vector<ofVec3f>			mPointCloudVertices;
+		vector<ofVec3f>			mPointCloudUVs;
+		vector<ofVec3f>			mPointCloudColors;
+
 		uint16_t				*mRawDepth;
 	};
 };

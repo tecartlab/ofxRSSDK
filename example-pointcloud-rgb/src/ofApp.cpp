@@ -17,21 +17,28 @@ void ofApp::setup()
 void ofApp::update()
 {
 	mRSSDK->update();
-	
+
+	/*
 	mCloudMesh.clear();
 	mCloudMesh.setMode(OF_PRIMITIVE_POINTS);
 	mCloudMesh.enableColors();
 
-	/**
 	//TODO: Figure out a better way to work with BGRA pixels
 	vector<ofVec3f> pointCloud = mRSSDK->getPointCloud();
+
+	cout << "point cloud size: " << pointCloud.size() << endl;
+
 	for(vector<ofVec3f>::iterator p=pointCloud.begin();p!=pointCloud.end();++p)
 	{
 		mCloudMesh.addVertex(*p);
-		ofColor c = mRSSDK->getColorFromDepthSpace(*p);
-		mCloudMesh.addColor(ofColor(c.b,c.g,c.r));
+//		ofColor c = mRSSDK->getColorFromDepthSpace(*p);
+//		mCloudMesh.addColor(ofColor(c.b, c.g, c.r));
+//		mCloudMesh.addColor(ofColor(p->x * 255, p->y * 255, p->z * 255));
+		mCloudMesh.addColor(ofColor(255, p->y * 255, p->z * 255));
 	}
+
 	*/
+
 }
 
 //--------------------------------------------------------------
@@ -42,12 +49,16 @@ void ofApp::draw()
 
 	ofTexture tex;
 	tex.loadData(mRSSDK->getRgbFrame());
-	tex.draw(0, 0);
+	//tex.loadData(mRSSDK->getDepthFrame());
+	//tex.draw(0, 0);
 
-	mCamera.begin();
+	mRSSDK->draw(1280, 720, 10., 0., 0., tex);
+
+	//mCamera.begin();
 	//mCloudMesh.draw(); 
-	mCamera.end();
+	//mCamera.end();
 }
+
 
 void ofApp::exit()
 {

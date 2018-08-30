@@ -5,3 +5,4 @@ bin
 example-pointcloud-rgb/x64/
 *.opendb
 *.db
+*.TMP

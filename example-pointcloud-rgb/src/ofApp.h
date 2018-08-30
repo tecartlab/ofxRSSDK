@@ -3,6 +3,7 @@
 #include <vector>
 #include "ofMain.h"
 #include "ofxRSSDKv2.h"
+#include <librealsense2/rs.hpp> // Include RealSense Cross Platform API 
 
 using namespace std;
 using namespace ofxRSSDK;
@@ -14,6 +15,8 @@ public:
 	void update();
 	void draw();
 	void exit();
+
+	void ofApp::draw_pointcloud(float width, float height, rs2::points& points);
 
 	void keyPressed(int key);
 	void keyReleased(int key);

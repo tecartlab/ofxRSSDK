@@ -1,6 +1,11 @@
 #include <exception>
 #include "ofxRSSDKv2.h"
 #include "ofMain.h"
+#include <gl/gl.h>
+#include <gl/glu.h>
+
+#pragma comment(lib, "opengl32.lib")
+#pragma comment(lib, "glu32.lib")
 
 #ifndef STBIW_MALLOC
 #define STBIW_MALLOC(sz)        malloc(sz)
@@ -70,17 +75,17 @@ namespace ofxRSSDK
 		rs2_distortion model = i.model;
 		**/
 
-			if (mShouldAlign)
-			{
-				mColorToDepthFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
-				mDepthToColorFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
-			}
-			mIsRunning = true;
-			return true;
+		if (mShouldAlign)
+		{
+			mColorToDepthFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
+			mDepthToColorFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
+		}
+		mIsRunning = true;
 
 		// Capture 30 frames to give autoexposure, etc. a chance to settle
 		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
 
+		return true;
 	}
 
 	bool RSDevice::update()
@@ -88,124 +93,28 @@ namespace ofxRSSDK
 		if (rs2Pipe.poll_for_frames(&rs2FrameSet))
 		{
 			auto rs2DepthFrame = rs2FrameSet.first(RS2_STREAM_DEPTH);
-			// Generate the pointcloud and texture mapping	s
-			rs2Points = rs2PointCloud.calculate(rs2DepthFrame);
-			updatePointCloud();
+	
+			if (rs2DepthFrame)
+			{
+				// Use the colorizer to get an rgb image for the depth stream
+				auto rs2DepthVideoFrame = rs2Color_map(rs2DepthFrame);
+
+				mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), rs2DepthVideoFrame.get_width(), rs2DepthVideoFrame.get_height(), 3);
+			}
 
 			auto rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_COLOR).as<rs2::video_frame>();
 
-			// We can only save video frames as pngs, so we skip the rest
 			if (rs2VideoFrame)
 			{
-				// Use the colorizer to get an rgb image for the depth stream
-				if (rs2VideoFrame.is<rs2::depth_frame>()) rs2VideoFrame = rs2Color_map(rs2FrameSet);
-
 				mRgbFrame.setFromExternalPixels((unsigned char *)rs2VideoFrame.get_data(), rs2VideoFrame.get_width(), rs2VideoFrame.get_height(), 3);
-
-				//copyFrame(&rs2VideoFrame, &mRgbFrame);
-
-				// For cameras that don't have RGB sensor, we'll map the pointcloud to infrared instead of color
-//					if (!rs2VideoFrame)
-//						rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_INFRARED);
-
-				cout << "copied video frame " << endl;
-				//cout << " source h=" << rs2VideoFrame.get_height() << " w = " << rs2VideoFrame.get_width() << endl;
-				//cout << " target h=" << mRgbFrame.getHeight() << " w = " << mRgbFrame.getWidth() << endl;
-
-				
-
-				//mRgbFrame.setFromExternalPixels(rs2VideoFrame.get_data(), mRgbSize.x, mRgbSize.y, 4);
-
-			}
-			else {
-				cout << "no video frame frame" << endl;
 			}
 
+			// Generate the pointcloud and texture mapping	s
+			updatePointCloud(rs2DepthFrame, rs2VideoFrame, mRgbFrame);
 
 			return true;
 		}
-		/**
 	
-			if (mHasDepth)
-			{
-				if (!mCurrentSample->depth)
-					return false;
-				PXCImage *cDepthImage = mCurrentSample->depth;
-				PXCImage::ImageData cDepthData;
-				cStatus = cDepthImage->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_DEPTH, &cDepthData);
-				
-				if (cStatus < PXC_STATUS_NO_ERROR)
-				{
-					cDepthImage->ReleaseAccess(&cDepthData);
-					return false;
-				}
-				mDepthFrame.setFromExternalPixels(reinterpret_cast<uint16_t *>(cDepthData.planes[0]), mDepthSize.x, mDepthSize.y, 1);
-				memcpy(mRawDepth, reinterpret_cast<uint16_t *>(cDepthData.planes[0]), (size_t)((int)mDepthSize.x*(int)mDepthSize.y*sizeof(uint16_t)));			
-				cDepthImage->ReleaseAccess(&cDepthData);
-
-				if (mShouldGetDepthAsColor)
-				{
-					PXCImage::ImageData cDepth8uData;
-					cStatus = cDepthImage->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_RGB32, &cDepth8uData);
-					if (cStatus < PXC_STATUS_NO_ERROR)
-					{
-						cDepthImage->ReleaseAccess(&cDepth8uData);
-						return false;
-					}
-					mDepth8uFrame.setFromExternalPixels(reinterpret_cast<uint8_t *>(cDepth8uData.planes[0]), mDepthSize.x, mDepthSize.y, 4);
-					cDepthImage->ReleaseAccess(&cDepth8uData);
-				}
-
-				if(mShouldGetPointCloud)
-				{
-					updatePointCloud();
-				}
-
-				if (!mHasRgb)
-				{
-					mSenseMgr->ReleaseFrame();
-					return true;
-				}
-			}
-
-			if (mHasDepth&&mHasRgb&&mShouldAlign&&mAlignMode==AlignMode::ALIGN_FRAME)
-			{
-				PXCImage *cMappedColor = mCoordinateMapper->CreateColorImageMappedToDepth(mCurrentSample->depth, mCurrentSample->color);
-				PXCImage *cMappedDepth = mCoordinateMapper->CreateDepthImageMappedToColor(mCurrentSample->color, mCurrentSample->depth);
-
-				if (!cMappedColor || !cMappedDepth)
-					return false;
-
-				PXCImage::ImageData cMappedColorData;
-				if (cMappedColor->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_RGB32, &cMappedColorData) >= PXC_STATUS_NO_ERROR)
-				{
-					mColorToDepthFrame.setFromExternalPixels(reinterpret_cast<uint8_t *>(cMappedColorData.planes[0]), mRgbSize.x, mRgbSize.y, 4);
-					cMappedColor->ReleaseAccess(&cMappedColorData);
-				}
-
-				PXCImage::ImageData cMappedDepthData;
-				if (cMappedDepth->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_RGB32, &cMappedDepthData) >= PXC_STATUS_NO_ERROR)
-				{
-					mDepthToColorFrame.setFromExternalPixels(reinterpret_cast<uint8_t *>(cMappedDepthData.planes[0]), mRgbSize.x, mRgbSize.y, 4);
-					cMappedDepth->ReleaseAccess(&cMappedDepthData);
-				}
-
-				try
-				{
-					cMappedColor->Release();
-					cMappedDepth->Release();
-				}
-				catch (const exception &e)
-				{
-					ofLog(ofLogLevel::OF_LOG_WARNING, "Release check error: ");
-					ofLog(ofLogLevel::OF_LOG_WARNING, e.what());
-				}
-			}
-			mSenseMgr->ReleaseFrame();
-			return true;
-		}
-		**/
-
 		return false;
 	}
 
@@ -216,150 +125,133 @@ namespace ofxRSSDK
 		
 	}
 
-	bool RSDevice::copyFrame(rs2::video_frame *source, ofPixels *target) {
-		int pWidth = source->get_width();
-		int pHeight = source->get_height();
-		int stride_bytes = source->get_stride_in_bytes();
-		int bytesPerPixel = source->get_bytes_per_pixel();
-
-		unsigned char *data = (unsigned char *) source->get_data();
-
-		target->setFromExternalPixels(data, pWidth, pHeight, 3);
-		return true;
-	}
-
 #pragma region Enable
-
-	/*
-	unsigned char *RSDevice::stbi_write_png_to_mem(unsigned char *data, int stride_bytes, int pWidth, int pHeight, int bytesPerPixel, int *out_len)
-	{
-		unsigned char *out, *filt;
-		signed char *line_buffer;
-		int i, j, k, p, zlen;
-
-		if (stride_bytes == 0)
-			stride_bytes = pWidth * bytesPerPixel;
-
-
-		filt = (unsigned char *)STBIW_MALLOC((pWidth * bytesPerPixel + 1) * pHeight); if (!filt) return 0;
-		line_buffer = (signed char *)STBIW_MALLOC(pWidth * bytesPerPixel); if (!line_buffer) { STBIW_FREE(filt); return 0; }
-		for (j = 0; j < pHeight; ++j) {
-			static int mapping[] = { 0,1,2,3,4 };
-			static int firstmap[] = { 0,1,0,5,6 };
-			int *mymap = j ? mapping : firstmap;
-			int best = 0, bestval = 0x7fffffff;
-			for (p = 0; p < 2; ++p) {
-				for (k = p ? best : 0; k < 5; ++k) {
-					int type = mymap[k], est = 0;
-					unsigned char *z = data + stride_bytes*j;
-					for (i = 0; i < bytesPerPixel; ++i)
-						switch (type) {
-						case 0: line_buffer[i] = z[i]; break;
-						case 1: line_buffer[i] = z[i]; break;
-						case 2: line_buffer[i] = z[i] - z[i - stride_bytes]; break;
-						case 3: line_buffer[i] = z[i] - (z[i - stride_bytes] >> 1); break;
-						case 4: line_buffer[i] = (signed char)(z[i] - stbiw__paeth(0, z[i - stride_bytes], 0)); break;
-						case 5: line_buffer[i] = z[i]; break;
-						case 6: line_buffer[i] = z[i]; break;
-						}
-					for (i = bytesPerPixel; i < pWidth*bytesPerPixel; ++i) {
-						switch (type) {
-						case 0: line_buffer[i] = z[i]; break;
-						case 1: line_buffer[i] = z[i] - z[i - bytesPerPixel]; break;
-						case 2: line_buffer[i] = z[i] - z[i - stride_bytes]; break;
-						case 3: line_buffer[i] = z[i] - ((z[i - bytesPerPixel] + z[i - stride_bytes]) >> 1); break;
-						case 4: line_buffer[i] = z[i] - stbiw__paeth(z[i - bytesPerPixel], z[i - stride_bytes], z[i - stride_bytes - bytesPerPixel]); break;
-						case 5: line_buffer[i] = z[i] - (z[i - bytesPerPixel] >> 1); break;
-						case 6: line_buffer[i] = z[i] - stbiw__paeth(z[i - bytesPerPixel], 0, 0); break;
-						}
-					}
-					if (p) break;
-					for (i = 0; i < pWidth*bytesPerPixel; ++i)
-						est += abs((signed char)line_buffer[i]);
-					if (est < bestval) { bestval = est; best = k; }
-				}
-			}
-			// when we get here, best contains the filter type, and line_buffer contains the data
-			filt[j*(pWidth*bytesPerPixel + 1)] = (unsigned char)best;
-			STBIW_MEMMOVE(filt + j*(pWidth*bytesPerPixel + 1) + 1, line_buffer, pWidth*bytesPerPixel);
-		}
-		STBIW_FREE(line_buffer);
-		STBIW_FREE(filt);
-	}
-
-	static int RSDevice::stbi_write_png(char const *filename, int x, int y, int comp, const void *data, int stride_bytes)
-	{
-		FILE *f;
-		int len;
-		unsigned char *png = stbi_write_png_to_mem((unsigned char *)data, stride_bytes, x, y, comp, &len);
-		if (png == NULL) return 0;
-		f = fopen(filename, "wb");
-		if (!f) { STBIW_FREE(png); return 0; }
-		fwrite(png, 1, len, f);
-		fclose(f);
-		STBIW_FREE(png);
-		return 1;
-	}
-
-	static unsigned char RSDevice::stbiw__paeth(int a, int b, int c)
-	{
-		int p = a + b - c, pa = abs(p - a), pb = abs(p - b), pc = abs(p - c);
-		if (pa <= pb && pa <= pc) return STBIW_UCHAR(a);
-		if (pb <= pc) return STBIW_UCHAR(b);
-		return STBIW_UCHAR(c);
-	}
-	*/
 
 #pragma endregion
 
 #pragma region Update
-	void RSDevice::updatePointCloud()
+	void RSDevice::updatePointCloud(rs2::frame depthFrame, rs2::video_frame texture, ofPixels colors)
 	{
+
+		cout << "calculate pc: " << endl;
+
+		// Generate the pointcloud and texture mapping	s
+		rs2Points = rs2PointCloud.calculate(depthFrame);
+
+		rs2PointCloud.map_to(texture);
+
 		int width = (int)mDepthSize.x;
 		int height = (int)mDepthSize.y;
 		int step = (int)mCloudRes;
-		mPointCloud.clear();
+		
+		cout << "depth point cloud w: " << width << " h: " << height << endl;
 
-		vector<rs2::vertex> depthPoints, worldPoints;
+		//vector<rs2::vertex> depthPoints, worldPoints;
 
 		auto vertices = rs2Points.get_vertices();              // get vertices
+		auto textureUVs = rs2Points.get_texture_coordinates();
 
-		/**
+		if (mPointCloudVertices.size() == 0) {
+			cout << "create new vector: " << endl;
+			mPointCloudVertices.resize(height * width / (step * step));
+			for (int i = 0; i < mPointCloudVertices.size(); ++i) {
+				mPointCloudVertices[i] = ofVec3f(0, 0, 0);
+			}
+		}
+
+		int indexA, indexB;
+		for (int dy = 0; dy < height; dy+=step)
+		{
+			for (int dx = 0; dx < width; dx+=step)
+			{
+				indexA = dy * width + dx;
+				indexB = dy * width / step + dx / step;
+				mPointCloudVertices[indexB].x = vertices[indexA].x;
+				mPointCloudVertices[indexB].y = vertices[indexA].y;
+				mPointCloudVertices[indexB].z = vertices[indexA].z;
+
+				//cPoint.z = (float)vertices[dy*width + dx].z;
+				//if (cPoint.z > mPointCloudRange.x && cPoint.z < mPointCloudRange.y) {
+				//	depthPoints.push_back(cPoint);
+				//}
+			}
+		}
+
+		// cout << "depth point cloud size: " << depthPoints.size() << endl;
+
+		/*
+		worldPoints.resize(depthPoints.size());
+
+		for (int i = 0; i < depthPoints.size();++i)
+		{
+			rs2::vertex p = worldPoints[i];
+			mPointCloudVertices.push_back(ofVec3f(p.x, p.y, p.z));
+		}
+		*/
+
+		cout << "final depth point cloud size: " << mPointCloudVertices.size() << endl;
+	}
+
+	bool RSDevice::draw(float width, float height, float offset, float pitch, float yaw, ofTexture texture)
+	{
+		if (!rs2Points)
+			return false;
+
+		cout << "drawing pointcloud: " << rs2Points.get_frame_number() << endl;
+
+		// OpenGL commands that prep screen for the pointcloud
+		glPopMatrix();
+		glPushAttrib(GL_ALL_ATTRIB_BITS);
+
+		glClearColor(153.f / 255, 153.f / 255, 153.f / 255, 1);
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		gluPerspective(60, width / height, 0.01f, 10.0f);
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0);
+
+		glTranslatef(0, 0, +0.5f + offset*0.05f);
+		glRotated(pitch, 1, 0, 0);
+		glRotated(yaw, 0, 1, 0);
+		glTranslatef(0, 0, -0.5f);
+
+		glPointSize(width / 640);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_TEXTURE_2D);
+
+		float tex_border_color[] = { 0.8f, 0.8f, 0.8f, 0.8f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, tex_border_color);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
+		glBegin(GL_POINTS);
+
+		/* this segment actually prints the pointcloud */
+		auto vertices = rs2Points.get_vertices();              // get vertices
+		auto tex_coords = rs2Points.get_texture_coordinates(); // and texture coordinates
 		for (int i = 0; i < rs2Points.size(); i++)
 		{
 			if (vertices[i].z)
 			{
 				// upload the point and texture coordinates only for points we have depth data for
 				glVertex3fv(vertices[i]);
-			}
-		}
-		**/
-
-		for (int dy = 0; dy < height;dy+=step)
-		{
-			for (int dx = 0; dx < width; dx+=step)
-			{
-				rs2::vertex cPoint;
-				cPoint.x = dx; 
-				cPoint.y = dy; 
-				cPoint.z = (float)vertices[dy*width + dx].z;
-				if(cPoint.z > mPointCloudRange.x && cPoint.z < mPointCloudRange.y)
-					depthPoints.push_back(cPoint);
+				glColor3f(1., 0., 0.);
+				//glTexCoord2fv(tex_coords[i]);
 			}
 		}
 
-		worldPoints.resize(depthPoints.size());
+		// OpenGL cleanup
+		glEnd();
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glPopAttrib();
+		glPushMatrix();
 
-		for (int i = 0; i < depthPoints.size();++i)
-		{
-			rs2::vertex p = worldPoints[i];
-			mPointCloud.push_back(ofVec3f(p.x, p.y, p.z));
-		}
-	}
-
-	bool RSDevice::draw()
-	{
-		return false;
+		return true;
 	}
 #pragma endregion
 
@@ -369,7 +261,7 @@ namespace ofxRSSDK
 		return mRgbFrame;
 	}
 
-	const ofShortPixels& RSDevice::getDepthFrame()
+	const ofPixels& RSDevice::getDepthFrame()
 	{
 		return mDepthFrame;
 	}
@@ -391,7 +283,7 @@ namespace ofxRSSDK
 
 	vector<ofVec3f> RSDevice::getPointCloud()
 	{
-		return mPointCloud;
+		return mPointCloudVertices;
 	}
 
 	//Nomenclature Notes:
@@ -483,26 +375,7 @@ namespace ofxRSSDK
 		//get a ofColor object from a depth camera space point
 	const ofColor RSDevice::getColorFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ)
 	{
-		/**
-		if (mCoordinateMapper)
-		{
-			PXCPoint3DF32 cPoint;
-			cPoint.x = pCameraX; cPoint.y = pCameraY; cPoint.z = pCameraZ;
-
-			mInPoints3D.clear();
-			mInPoints3D.push_back(cPoint);
-			mOutPoints2D.clear();
-			mOutPoints2D.resize(2);
-			mCoordinateMapper->ProjectCameraToColor(1, &mInPoints3D[0], &mOutPoints2D[0]);
-
-			int imageX = static_cast<int>(mOutPoints2D[0].x);
-			int imageY = static_cast<int>(mOutPoints2D[0].y);
-			if( (imageX>=0&&imageX<mRgbSize.x)  &&(imageY>=0&&imageY<mRgbSize.y))
-				return mRgbFrame.getColor(imageX, imageY);
 			return ofColor::black;
-		}
-		**/
-		return ofColor::black;
 	}
 
 	const ofColor RSDevice::getColorFromDepthSpace(ofPoint pCameraPoint)
