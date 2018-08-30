@@ -1,17 +1,18 @@
 #ifndef __OFX_RSSDK_H__
 #define __OFX_RSSDK_H__
 #ifdef _DEBUG
-#pragma comment(lib, "libpxcmd_d.lib")
+#pragma comment(lib, "realsense2.lib")
 #else
-#pragma comment(lib, "libpxcmd.lib")
+#pragma comment(lib, "realsense2.lib")
 #endif
 #include <memory>
 #include "ofMain.h"
-#include "pxcsensemanager.h"
-#include "pxcprojection.h"
-#include "pxcblobmodule.h"
-#include "pxcfacemodule.h"
-#include "pxcfaceconfiguration.h"
+#include <librealsense2/rs.hpp> // Include RealSense Cross Platform API 
+// configure in windows -> project properties -> C/C++ -> General -> additional include directories -> SDK include folder
+
+#include <fstream>              // File IO
+#include <iostream>             // Terminal IO
+#include <sstream>              // Stringstreams
 
 using namespace std;
 
@@ -57,20 +58,18 @@ namespace ofxRSSDK
 		~RSDevice();
 		static RSDevicePtr createUniquePtr() { return RSDevicePtr(new RSDevice()); }
 		static RSDeviceRef createSharedPtr() { return RSDeviceRef(new RSDevice()); }
-		bool init();
-		bool initRgb(const RGBRes& pSize, const float& pFPS);
-		bool initDepth(const DepthRes& pSize, const float& pFPS, bool pAsColor);
 		
 		void enableAlignedImages(bool pState = true, AlignMode pMode = AlignMode::ALIGN_UVS_ONLY) { mShouldAlign = pState; mAlignMode = pMode; }
 		void enablePointCloud(CloudRes pCloudRes, float pMinDepth, float pMaxDepth) { mCloudRes=pCloudRes; mShouldGetPointCloud=true; mPointCloudRange = ofVec2f(pMinDepth,pMaxDepth);}
-		bool enableFaceTracking(bool pUseDepth);
-		bool enableBlobTracking();
-
 		void setPointCloudRange(float pMin, float pMax);
 
 		bool start();
 		bool update();
 		bool stop();
+
+		bool draw();
+
+		bool RSDevice::copyFrame(rs2::video_frame *source, ofPixels *target);
 
 		const ofPixels&	getRgbFrame();
 		const ofShortPixels&	getDepthFrame();
@@ -117,18 +116,14 @@ namespace ofxRSSDK
 
 	private:
 		void			updatePointCloud();
-		void			updateFaces();
-		void			updateBlobs();
 
 		bool			mIsInit,
-						mIsRunning,
-						mHasRgb,
-						mHasDepth,
-						mShouldAlign,
-						mShouldGetDepthAsColor,
-						mShouldGetPointCloud,
-						mShouldGetFaces,
-						mShouldGetBlobs;
+			mIsRunning,
+			mHasRgb,
+			mHasDepth,
+			mShouldAlign,
+			mShouldGetDepthAsColor,
+			mShouldGetPointCloud;
 
 		AlignMode		mAlignMode;
 		CloudRes		mCloudRes;
@@ -142,16 +137,23 @@ namespace ofxRSSDK
 		ofPixels		mDepthToColorFrame;
 		ofShortPixels		mDepthFrame;
 
-		PXCSenseManager		*mSenseMgr;
-		PXCProjection		*mCoordinateMapper;
-		PXCCapture::Sample	*mCurrentSample;
+		// Declare depth colorizer for pretty visualization of depth data
+		rs2::colorizer rs2Color_map;
 
-		PXCBlobModule		*mBlobTracker;
-		PXCFaceModule		*mFaceTracker;
+		// Declare pointcloud object, for calculating pointclouds and texture mappings
+		rs2::pointcloud rs2PointCloud;
+		// We want the points object to be persistent so we can display the last cloud when a frame drops
+		rs2::points rs2Points;
 
-		vector<PXCPoint3DF32>	mInPoints3D;
-		vector<PXCPoint3DF32>	mOutPoints3D;
-		vector<PXCPointF32>		mOutPoints2D;
+		// Declare RealSense pipeline, encapsulating the actual device and sensors
+		rs2::pipeline rs2Pipe;
+
+		// Profile
+		rs2::pipeline_profile rs2PipeLineProfile;
+
+		// current frame
+		rs2::frameset rs2FrameSet;
+
 		vector<ofVec3f>			mPointCloud;
 		uint16_t				*mRawDepth;
 	};

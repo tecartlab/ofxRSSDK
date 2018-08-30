@@ -5,15 +5,8 @@ void ofApp::setup()
 {
 	ofSetWindowShape(1280, 720);
 	mRSSDK = RSDevice::createUniquePtr();
-	if (!mRSSDK->init())
-	{
-		ofLogError("Unable to create ofxRSSDK object");
-		exit();
-	}
 
-	mRSSDK->initRgb(RGBRes::VGA,30);
-	mRSSDK->initDepth(DepthRes::QVGA, 30, false);
-	mRSSDK->enablePointCloud(CloudRes::FULL_RES);
+	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
 	mRSSDK->setPointCloudRange(100.0f,1000.0f);
 
 	mRSSDK->start();
@@ -29,6 +22,7 @@ void ofApp::update()
 	mCloudMesh.setMode(OF_PRIMITIVE_POINTS);
 	mCloudMesh.enableColors();
 
+	/**
 	//TODO: Figure out a better way to work with BGRA pixels
 	vector<ofVec3f> pointCloud = mRSSDK->getPointCloud();
 	for(vector<ofVec3f>::iterator p=pointCloud.begin();p!=pointCloud.end();++p)
@@ -37,6 +31,7 @@ void ofApp::update()
 		ofColor c = mRSSDK->getColorFromDepthSpace(*p);
 		mCloudMesh.addColor(ofColor(c.b,c.g,c.r));
 	}
+	*/
 }
 
 //--------------------------------------------------------------
@@ -45,8 +40,12 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
+	ofTexture tex;
+	tex.loadData(mRSSDK->getRgbFrame());
+	tex.draw(0, 0);
+
 	mCamera.begin();
-	mCloudMesh.draw(); 
+	//mCloudMesh.draw(); 
 	mCamera.end();
 }
 

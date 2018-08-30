@@ -2,11 +2,34 @@
 #include "ofxRSSDKv2.h"
 #include "ofMain.h"
 
+#ifndef STBIW_MALLOC
+#define STBIW_MALLOC(sz)        malloc(sz)
+#define STBIW_REALLOC(p,newsz)  realloc(p,newsz)
+#define STBIW_FREE(p)           free(p)
+#endif
+
+#ifndef STBIW_REALLOC_SIZED
+#define STBIW_REALLOC_SIZED(p,oldsz,newsz) STBIW_REALLOC(p,newsz)
+#endif
+
+
+#ifndef STBIW_MEMMOVE
+#define STBIW_MEMMOVE(a,b,sz) memmove(a,b,sz)
+#endif
+
+
+#ifndef STBIW_ASSERT
+#include <assert.h>
+#define STBIW_ASSERT(x) assert(x)
+#endif
+
+#define STBIW_UCHAR(x) (unsigned char) ((x) & 0xff)
+
 namespace ofxRSSDK
 {
 	RSDevice::~RSDevice(){}
-	RSDevice::RSDevice()
-	{
+
+	RSDevice::RSDevice(){
 		mIsInit = false;
 		mIsRunning = false;
 		mHasRgb = false;
@@ -14,82 +37,12 @@ namespace ofxRSSDK
 		mShouldAlign = false;
 		mShouldGetDepthAsColor = false;
 		mShouldGetPointCloud = false;
-		mShouldGetFaces = false;
-		mShouldGetBlobs = false;
 		mPointCloudRange = ofVec2f(0,3000);
 		mCloudRes = CloudRes::FULL_RES;
 	}
 
 #pragma region Init
-	bool RSDevice::init()
-	{
-		mSenseMgr = PXCSenseManager::CreateInstance();
-		if (mSenseMgr)
-			mIsInit = true;
 
-		return mIsInit;
-	}
-
-	bool RSDevice::initRgb(const RGBRes& pSize, const float& pFPS)
-	{
-		pxcStatus cStatus;
-		if (mSenseMgr)
-		{
-			switch (pSize)
-			{
-			case RGBRes::VGA:
-				mRgbSize = ofVec2f(640, 480);
-				break;
-			case RGBRes::HD720:
-				mRgbSize = ofVec2f(1280, 720);
-				break;
-			case RGBRes::HD1080:
-				mRgbSize = ofVec2f(1920, 1080);
-				break;
-			}
-			cStatus = mSenseMgr->EnableStream(PXCCapture::STREAM_TYPE_COLOR, mRgbSize.x, mRgbSize.y, pFPS);
-			if (cStatus >= PXC_STATUS_NO_ERROR)
-			{
-				mHasRgb = true;
-				mRgbFrame.allocate(mRgbSize.x, mRgbSize.y,ofPixelFormat::OF_PIXELS_BGRA);
-			}
-		}
-
-		return mHasRgb;
-	}
-
-	bool RSDevice::initDepth(const DepthRes& pSize, const float& pFPS, bool pAsColor)
-	{
-		pxcStatus cStatus;
-		if (mSenseMgr)
-		{
-			switch (pSize)
-			{
-			case DepthRes::R200_SD:
-				mDepthSize = ofVec2f(480,360);
-				break;
-			case DepthRes::R200_VGA:
-				mDepthSize = ofVec2f(628,468);
-				break;
-			case DepthRes::F200_VGA:
-				mDepthSize = ofVec2f(640,480);
-				break;
-			case DepthRes::QVGA:
-				mDepthSize = ofVec2f(320,240);
-				break;
-			}
-			cStatus = mSenseMgr->EnableStream(PXCCapture::STREAM_TYPE_DEPTH, mDepthSize.x, mDepthSize.y, pFPS);
-			if (cStatus >= PXC_STATUS_NO_ERROR)
-			{
-				mHasDepth = true;
-				mShouldGetDepthAsColor = pAsColor;
-				mDepthFrame.allocate(mDepthSize.x, mDepthSize.y,1);
-				mDepth8uFrame.allocate(mDepthSize.x, mDepthSize.y, ofPixelFormat::OF_PIXELS_RGBA);
-				mRawDepth = new uint16_t[(int)mDepthSize.x*(int)mDepthSize.y];
-			}
-		}
-		return mHasDepth;
-	}
 #pragma endregion
 
 	void RSDevice::setPointCloudRange(float pMin=100.0f, float pMax=1500.0f)
@@ -99,10 +52,24 @@ namespace ofxRSSDK
 
 	bool RSDevice::start()
 	{
-		pxcStatus cStatus = mSenseMgr->Init();
-		if (cStatus >= PXC_STATUS_NO_ERROR)
-		{
-			mCoordinateMapper = mSenseMgr->QueryCaptureManager()->QueryDevice()->CreateProjection();
+		rs2PipeLineProfile = rs2Pipe.start();
+
+		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
+		auto color_sream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
+
+		mRgbSize.x = color_sream.width();
+		mRgbSize.y = color_sream.height();
+		mDepthSize.x = depth_stream.width();
+		mDepthSize.y = depth_stream.height();
+
+		/**
+		auto resolution = std::make_pair(depth_stream.width(), depth_stream.height());
+		auto i = depth_stream.get_intrinsics();
+		auto principal_point = std::make_pair(i.ppx, i.ppy);
+		auto focal_length = std::make_pair(i.fx, i.fy);
+		rs2_distortion model = i.model;
+		**/
+
 			if (mShouldAlign)
 			{
 				mColorToDepthFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
@@ -110,42 +77,55 @@ namespace ofxRSSDK
 			}
 			mIsRunning = true;
 			return true;
-		}
-		return false;
+
+		// Capture 30 frames to give autoexposure, etc. a chance to settle
+		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
+
 	}
 
 	bool RSDevice::update()
 	{
-		pxcStatus cStatus;
-		if (mSenseMgr)
+		if (rs2Pipe.poll_for_frames(&rs2FrameSet))
 		{
-			cStatus = mSenseMgr->AcquireFrame(false,0);
-			if (cStatus < PXC_STATUS_NO_ERROR)
-				return false;
-			PXCCapture::Sample *mCurrentSample = mSenseMgr->QuerySample();
-			if (!mCurrentSample)
-				return false;
-			if (mHasRgb)
-			{
-				if (!mCurrentSample->color)
-					return false;
-				PXCImage *cColorImage = mCurrentSample->color;
-				PXCImage::ImageData cColorData;
-				cStatus = cColorImage->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_RGB32, &cColorData);
-				if (cStatus < PXC_STATUS_NO_ERROR)
-				{
-					cColorImage->ReleaseAccess(&cColorData);
-					return false;
-				}
-				mRgbFrame.setFromExternalPixels(reinterpret_cast<uint8_t *>(cColorData.planes[0]), mRgbSize.x, mRgbSize.y,4);
+			auto rs2DepthFrame = rs2FrameSet.first(RS2_STREAM_DEPTH);
+			// Generate the pointcloud and texture mapping	s
+			rs2Points = rs2PointCloud.calculate(rs2DepthFrame);
+			updatePointCloud();
 
-				cColorImage->ReleaseAccess(&cColorData);
-				if (!mHasDepth)
-				{	
-					mSenseMgr->ReleaseFrame();
-					return true;
-				}
+			auto rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_COLOR).as<rs2::video_frame>();
+
+			// We can only save video frames as pngs, so we skip the rest
+			if (rs2VideoFrame)
+			{
+				// Use the colorizer to get an rgb image for the depth stream
+				if (rs2VideoFrame.is<rs2::depth_frame>()) rs2VideoFrame = rs2Color_map(rs2FrameSet);
+
+				mRgbFrame.setFromExternalPixels((unsigned char *)rs2VideoFrame.get_data(), rs2VideoFrame.get_width(), rs2VideoFrame.get_height(), 3);
+
+				//copyFrame(&rs2VideoFrame, &mRgbFrame);
+
+				// For cameras that don't have RGB sensor, we'll map the pointcloud to infrared instead of color
+//					if (!rs2VideoFrame)
+//						rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_INFRARED);
+
+				cout << "copied video frame " << endl;
+				//cout << " source h=" << rs2VideoFrame.get_height() << " w = " << rs2VideoFrame.get_width() << endl;
+				//cout << " target h=" << mRgbFrame.getHeight() << " w = " << mRgbFrame.getWidth() << endl;
+
+				
+
+				//mRgbFrame.setFromExternalPixels(rs2VideoFrame.get_data(), mRgbSize.x, mRgbSize.y, 4);
+
 			}
+			else {
+				cout << "no video frame frame" << endl;
+			}
+
+
+			return true;
+		}
+		/**
+	
 			if (mHasDepth)
 			{
 				if (!mCurrentSample->depth)
@@ -224,82 +204,112 @@ namespace ofxRSSDK
 			mSenseMgr->ReleaseFrame();
 			return true;
 		}
+		**/
+
 		return false;
 	}
 
 	bool RSDevice::stop()
 	{
-		if (mSenseMgr)
-		{
-			mCoordinateMapper->Release();
-			mSenseMgr->Close();
-			if(mShouldGetBlobs)
-			{
-				if(mBlobTracker)
-					mBlobTracker->Release();
-			}
-			if(mShouldGetFaces)
-			{
-				if(mFaceTracker)
-					mFaceTracker->Release();
-			}
-			return true;
-		}
-		delete [] mRawDepth;
-		return false;
+		rs2Pipe.stop();
+		return true;
+		
+	}
+
+	bool RSDevice::copyFrame(rs2::video_frame *source, ofPixels *target) {
+		int pWidth = source->get_width();
+		int pHeight = source->get_height();
+		int stride_bytes = source->get_stride_in_bytes();
+		int bytesPerPixel = source->get_bytes_per_pixel();
+
+		unsigned char *data = (unsigned char *) source->get_data();
+
+		target->setFromExternalPixels(data, pWidth, pHeight, 3);
+		return true;
 	}
 
 #pragma region Enable
-		bool RSDevice::enableFaceTracking(bool pUseDepth)
-		{
-			if(mSenseMgr)
-			{
-				if(mSenseMgr->EnableFace()>=PXC_STATUS_NO_ERROR)
-				{
-					mFaceTracker = mSenseMgr->QueryFace();
-					if(mFaceTracker)
-					{
-						PXCFaceConfiguration *config = mFaceTracker->CreateActiveConfiguration();
-						switch(pUseDepth)
-						{
-						case true:
-							config->SetTrackingMode(PXCFaceConfiguration::TrackingModeType::FACE_MODE_COLOR_PLUS_DEPTH);
-							break;
-						case false:
-							config->SetTrackingMode(PXCFaceConfiguration::TrackingModeType::FACE_MODE_COLOR);
-							break;
+
+	/*
+	unsigned char *RSDevice::stbi_write_png_to_mem(unsigned char *data, int stride_bytes, int pWidth, int pHeight, int bytesPerPixel, int *out_len)
+	{
+		unsigned char *out, *filt;
+		signed char *line_buffer;
+		int i, j, k, p, zlen;
+
+		if (stride_bytes == 0)
+			stride_bytes = pWidth * bytesPerPixel;
+
+
+		filt = (unsigned char *)STBIW_MALLOC((pWidth * bytesPerPixel + 1) * pHeight); if (!filt) return 0;
+		line_buffer = (signed char *)STBIW_MALLOC(pWidth * bytesPerPixel); if (!line_buffer) { STBIW_FREE(filt); return 0; }
+		for (j = 0; j < pHeight; ++j) {
+			static int mapping[] = { 0,1,2,3,4 };
+			static int firstmap[] = { 0,1,0,5,6 };
+			int *mymap = j ? mapping : firstmap;
+			int best = 0, bestval = 0x7fffffff;
+			for (p = 0; p < 2; ++p) {
+				for (k = p ? best : 0; k < 5; ++k) {
+					int type = mymap[k], est = 0;
+					unsigned char *z = data + stride_bytes*j;
+					for (i = 0; i < bytesPerPixel; ++i)
+						switch (type) {
+						case 0: line_buffer[i] = z[i]; break;
+						case 1: line_buffer[i] = z[i]; break;
+						case 2: line_buffer[i] = z[i] - z[i - stride_bytes]; break;
+						case 3: line_buffer[i] = z[i] - (z[i - stride_bytes] >> 1); break;
+						case 4: line_buffer[i] = (signed char)(z[i] - stbiw__paeth(0, z[i - stride_bytes], 0)); break;
+						case 5: line_buffer[i] = z[i]; break;
+						case 6: line_buffer[i] = z[i]; break;
 						}
-						config->ApplyChanges();
-						config->Release();
-						mShouldGetFaces = true;
+					for (i = bytesPerPixel; i < pWidth*bytesPerPixel; ++i) {
+						switch (type) {
+						case 0: line_buffer[i] = z[i]; break;
+						case 1: line_buffer[i] = z[i] - z[i - bytesPerPixel]; break;
+						case 2: line_buffer[i] = z[i] - z[i - stride_bytes]; break;
+						case 3: line_buffer[i] = z[i] - ((z[i - bytesPerPixel] + z[i - stride_bytes]) >> 1); break;
+						case 4: line_buffer[i] = z[i] - stbiw__paeth(z[i - bytesPerPixel], z[i - stride_bytes], z[i - stride_bytes - bytesPerPixel]); break;
+						case 5: line_buffer[i] = z[i] - (z[i - bytesPerPixel] >> 1); break;
+						case 6: line_buffer[i] = z[i] - stbiw__paeth(z[i - bytesPerPixel], 0, 0); break;
+						}
 					}
-					else
-						mShouldGetFaces = false;
-					return mShouldGetFaces;
+					if (p) break;
+					for (i = 0; i < pWidth*bytesPerPixel; ++i)
+						est += abs((signed char)line_buffer[i]);
+					if (est < bestval) { bestval = est; best = k; }
 				}
-				return false;
 			}
-			return false;
+			// when we get here, best contains the filter type, and line_buffer contains the data
+			filt[j*(pWidth*bytesPerPixel + 1)] = (unsigned char)best;
+			STBIW_MEMMOVE(filt + j*(pWidth*bytesPerPixel + 1) + 1, line_buffer, pWidth*bytesPerPixel);
 		}
+		STBIW_FREE(line_buffer);
+		STBIW_FREE(filt);
+	}
 
-		bool RSDevice::enableBlobTracking()
-		{
-			if(mSenseMgr)
-			{
-				if(mSenseMgr->EnableBlob()>=PXC_STATUS_NO_ERROR)
-				{
-					mBlobTracker = mSenseMgr->QueryBlob();
-					if(mBlobTracker)
-						mShouldGetBlobs = true;
-					else
-						mShouldGetBlobs = false;
-					return mShouldGetBlobs;
-				}
-				return false;
-			}
-			return false;
+	static int RSDevice::stbi_write_png(char const *filename, int x, int y, int comp, const void *data, int stride_bytes)
+	{
+		FILE *f;
+		int len;
+		unsigned char *png = stbi_write_png_to_mem((unsigned char *)data, stride_bytes, x, y, comp, &len);
+		if (png == NULL) return 0;
+		f = fopen(filename, "wb");
+		if (!f) { STBIW_FREE(png); return 0; }
+		fwrite(png, 1, len, f);
+		fclose(f);
+		STBIW_FREE(png);
+		return 1;
+	}
 
-		}
+	static unsigned char RSDevice::stbiw__paeth(int a, int b, int c)
+	{
+		int p = a + b - c, pa = abs(p - a), pb = abs(p - b), pc = abs(p - c);
+		if (pa <= pb && pa <= pc) return STBIW_UCHAR(a);
+		if (pb <= pc) return STBIW_UCHAR(b);
+		return STBIW_UCHAR(c);
+	}
+	*/
+
 #pragma endregion
 
 #pragma region Update
@@ -309,26 +319,47 @@ namespace ofxRSSDK
 		int height = (int)mDepthSize.y;
 		int step = (int)mCloudRes;
 		mPointCloud.clear();
-		vector<PXCPoint3DF32> depthPoints, worldPoints;
+
+		vector<rs2::vertex> depthPoints, worldPoints;
+
+		auto vertices = rs2Points.get_vertices();              // get vertices
+
+		/**
+		for (int i = 0; i < rs2Points.size(); i++)
+		{
+			if (vertices[i].z)
+			{
+				// upload the point and texture coordinates only for points we have depth data for
+				glVertex3fv(vertices[i]);
+			}
+		}
+		**/
+
 		for (int dy = 0; dy < height;dy+=step)
 		{
 			for (int dx = 0; dx < width; dx+=step)
 			{
-				PXCPoint3DF32 cPoint;
-				cPoint.x = dx; cPoint.y = dy; cPoint.z = (float)mRawDepth[dy*width + dx];
-				if(cPoint.z>mPointCloudRange.x&&cPoint.z<mPointCloudRange.y)
+				rs2::vertex cPoint;
+				cPoint.x = dx; 
+				cPoint.y = dy; 
+				cPoint.z = (float)vertices[dy*width + dx].z;
+				if(cPoint.z > mPointCloudRange.x && cPoint.z < mPointCloudRange.y)
 					depthPoints.push_back(cPoint);
 			}
 		}
 
 		worldPoints.resize(depthPoints.size());
-		mCoordinateMapper->ProjectDepthToCamera(depthPoints.size(), &depthPoints[0], &worldPoints[0]);
 
 		for (int i = 0; i < depthPoints.size();++i)
 		{
-			PXCPoint3DF32 p = worldPoints[i];
+			rs2::vertex p = worldPoints[i];
 			mPointCloud.push_back(ofVec3f(p.x, p.y, p.z));
 		}
+	}
+
+	bool RSDevice::draw()
+	{
+		return false;
 	}
 #pragma endregion
 
@@ -372,6 +403,7 @@ namespace ofxRSSDK
 	//get a camera space point from a depth image point
 	const ofPoint RSDevice::getDepthSpacePoint(float pImageX, float pImageY, float pImageZ)
 	{
+		/**
 		if (mCoordinateMapper)
 		{
 			PXCPoint3DF32 cPoint;
@@ -386,6 +418,7 @@ namespace ofxRSSDK
 			mCoordinateMapper->ProjectDepthToCamera(1, &mInPoints3D[0], &mOutPoints3D[0]);
 			return ofPoint(mOutPoints3D[0].x, mOutPoints3D[0].y, mOutPoints3D[0].z);
 		}
+		**/
 		return ofPoint(0);
 	}
 
@@ -402,6 +435,7 @@ namespace ofxRSSDK
 	//get a Color object from a depth image point
 	const ofColor RSDevice::getColorFromDepthImage(float pImageX, float pImageY, float pImageZ)
 	{
+		/**
 		if (mCoordinateMapper)
 		{
 			PXCPoint3DF32 cPoint;
@@ -423,20 +457,25 @@ namespace ofxRSSDK
 				return mRgbFrame.getColor(cColorX, cColorY);
 			}
 		}
+		**/
 		return ofColor::black;
 	}
 
 	const ofColor RSDevice::getColorFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ)
 	{
+		/**
 		if (mCoordinateMapper)
 			return getColorFromDepthImage(static_cast<float>(pImageX),static_cast<float>(pImageY),static_cast<float>(pImageZ));
+		**/
 		return ofColor::black;
 	}
 
 	const ofColor RSDevice::getColorFromDepthImage(ofPoint pImageCoords)
 	{
+		/**
 		if (mCoordinateMapper)
 			return getColorFromDepthImage(pImageCoords.x, pImageCoords.y, pImageCoords.z);
+			**/
 		return ofColor::black;
 	}
 
@@ -444,6 +483,7 @@ namespace ofxRSSDK
 		//get a ofColor object from a depth camera space point
 	const ofColor RSDevice::getColorFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ)
 	{
+		/**
 		if (mCoordinateMapper)
 		{
 			PXCPoint3DF32 cPoint;
@@ -461,19 +501,23 @@ namespace ofxRSSDK
 				return mRgbFrame.getColor(imageX, imageY);
 			return ofColor::black;
 		}
+		**/
 		return ofColor::black;
 	}
 
 	const ofColor RSDevice::getColorFromDepthSpace(ofPoint pCameraPoint)
 	{
+		/**
 		if (mCoordinateMapper)
 			return getColorFromDepthSpace(pCameraPoint.x, pCameraPoint.y, pCameraPoint.z);
+		**/
 		return ofColor::black;
 	}
 
 		//get ofColor space UVs from a depth image point
 	const ofVec2f RSDevice::getColorCoordsFromDepthImage(float pImageX, float pImageY, float pImageZ)
 	{
+		/**
 		if (mCoordinateMapper)
 		{
 			PXCPoint3DF32 cPoint;
@@ -493,6 +537,7 @@ namespace ofxRSSDK
 			delete cOutPoints;
 			return ofVec2f(cColorX / (float)mRgbSize.x, cColorY / (float)mRgbSize.y);
 		}
+		**/
 		return ofVec2f(0);
 	}
 
@@ -509,6 +554,7 @@ namespace ofxRSSDK
 		//get ofColor space UVs from a depth space point
 	const ofVec2f RSDevice::getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ)
 	{
+		/**
 		if (mCoordinateMapper)
 		{
 			PXCPoint3DF32 cPoint;
@@ -524,6 +570,7 @@ namespace ofxRSSDK
 			delete cOutPoint;
 			return cRetPt;
 		}
+		**/
 		return ofVec2f(0);
 	}
 

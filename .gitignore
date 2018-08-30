@@ -2,3 +2,6 @@ obj
 bin
 *.suo
 *.sdf
+example-pointcloud-rgb/x64/
+*.opendb
+*.db
