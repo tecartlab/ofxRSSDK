@@ -96,7 +96,7 @@ namespace ofxRSSDK
 		bool update();
 		bool stop();
 
-		bool draw(float width, float height, float offset, float pitch, float yaw, ofTexture texture);
+		bool draw();
 
 		const ofPixels&	getRgbFrame();
 		const ofPixels&	getDepthFrame();
@@ -104,7 +104,8 @@ namespace ofxRSSDK
 		const ofPixels&	getColorMappedToDepthFrame();
 		const ofPixels&	getDepthMappedToColorFrame();
 
-		vector<glm::vec3> getPointCloud();
+		ofMesh getPointCloud();
+		vector<glm::vec3> & getPointCloudVertices();
 
 		//Nomenclature Notes:
 		//	"Space" denotes a 3d coordinate
@@ -152,7 +153,8 @@ namespace ofxRSSDK
 			mHasDepth,
 			mShouldAlign,
 			mShouldGetDepthAsColor,
-			mShouldGetPointCloud;
+			mShouldGetPointCloud,
+			mHasChangedResolution;
 
 		AlignMode		mAlignMode;
 		CloudRes		mCloudRes;
@@ -183,9 +185,7 @@ namespace ofxRSSDK
 		// current frame
 		rs2::frameset rs2FrameSet;
 
-		vector<glm::vec3>			mPointCloudVertices;
-		vector<glm::vec3>			mPointCloudUVs;
-		vector<glm::vec3>			mPointCloudColors;
+		ofMesh mPointCloud;
 
 		uint16_t				*mRawDepth;
 	};

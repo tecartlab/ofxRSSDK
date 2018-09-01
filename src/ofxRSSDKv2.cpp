@@ -30,6 +30,10 @@ namespace ofxRSSDK
 
 	bool RSDevice::start()
 	{
+		mPointCloud.clear();
+		mPointCloud.setMode(OF_PRIMITIVE_POINTS);
+		mPointCloud.enableColors();
+
 		rs2PipeLineProfile = rs2Pipe.start();
 
 		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
@@ -53,10 +57,12 @@ namespace ofxRSSDK
 			mColorToDepthFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
 			mDepthToColorFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
 		}
-		mIsRunning = true;
 
 		// Capture 30 frames to give autoexposure, etc. a chance to settle
 		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
+
+		mIsRunning = true;
+		mHasChangedResolution = true;
 
 		return true;
 	}
@@ -85,6 +91,7 @@ namespace ofxRSSDK
 			// Generate the pointcloud and texture mapping	s
 			updatePointCloud(rs2DepthFrame, rs2VideoFrame, mRgbFrame);
 
+			mHasChangedResolution = false;
 			return true;
 		}
 	
@@ -113,135 +120,76 @@ namespace ofxRSSDK
 
 		rs2PointCloud.map_to(texture);
 
-		int width = (int)mDepthSize.x;
-		int height = (int)mDepthSize.y;
+		int dWidth = (int)mDepthSize.x;
+		int dHeight = (int)mDepthSize.y;
+		int cWidth = colors.getWidth();
+		int cHeight = colors.getHeight();
+
 		int step = (int)mCloudRes;
 		
-		cout << "depth point cloud w: " << width << " h: " << height << endl;
-
-		vector<rs2::vertex> depthPoints, worldPoints;
+		cout << "depth point cloud w: " << dWidth << " h: " << dHeight << endl;
 
 		auto vertices = rs2Points.get_vertices();              // get vertices
 		auto textureUVs = rs2Points.get_texture_coordinates();
 
-		if (mPointCloudVertices.size() == 0) {
-			cout << "create new vector: " << endl;
-			mPointCloudVertices.resize(height * width / (step * step));
-			std::fill(mPointCloudVertices.begin(), mPointCloudVertices.end(), glm::vec3(0, 0, 0));
+		if (mHasChangedResolution) {
+			mPointCloud.clear();
+			mPointCloud.setMode(OF_PRIMITIVE_POINTS);
+			mPointCloud.enableColors();
+			for (int i = 0; i < dHeight * dWidth / (step * step); i++) {
+				mPointCloud.addVertex(glm::vec3(0, 0, 0));
+				mPointCloud.addColor(ofDefaultColorType());
+			}
+			cout << "created new mesh: " << dHeight << "/" << dWidth << endl;
 		}
 		
 		float firstTime = ofGetElapsedTimef();  
 
-		glm::vec3 vec = glm::vec3(0, 0, 0);
+		glm::vec3* pVertices = mPointCloud.getVerticesPointer();
+		ofDefaultColorType* pColors = mPointCloud.getColorsPointer();
 
-		glm::vec3* p = mPointCloudVertices.data();
+		int i_dOrig, i_dTarget, i_cOrig;
+		float relHeight = cHeight / dHeight;
+		float relWidth = cWidth / dWidth;
 
-		int indexA, indexB;
-		for (int dy = 0; dy < height; dy+=step)
+		for (int dy = 0; dy < dHeight; dy+=step)
 		{
-			for (int dx = 0; dx < width; dx+=step)
+			int cy = dy * relHeight;
+			auto pxlLine = colors.getLine(cy);
+
+			for (int dx = 0; dx < dWidth; dx+=step)
 			{
+				int cx = dx * relHeight;
+				auto pxl = pxlLine.getPixel(cx);
 
-				indexA = dy * width + dx;
-				indexB = dy * width / (step * step) + dx / step;
-				//indexB = indexA / width;
+				i_dOrig = dy * dWidth + dx;
 
-				p[indexB].x = vertices[indexA].x;
-				p[indexB].y = vertices[indexA].y;
-				p[indexB].z = vertices[indexA].z;
+				i_dTarget = dy * dWidth / (step * step) + dx / step;
+
+				pVertices[i_dTarget].x = vertices[i_dOrig].x;
+				pVertices[i_dTarget].y = vertices[i_dOrig].y;
+				pVertices[i_dTarget].z = vertices[i_dOrig].z;
 				
-				
-				/*
-				mPointCloudVertices[indexB] = glm::vec3(vertices[indexA].x, vertices[indexA].y, vertices[indexA].z);
-				mPointCloudVertices[indexB].set(vertices[indexA].x, vertices[indexA].y, vertices[indexA].z);
-				mPointCloudVertices[indexB].x = vertices[indexA].x;
-				mPointCloudVertices[indexB].y = vertices[indexA].y;
-				mPointCloudVertices[indexB].z = vertices[indexA].z;
-				*/
+				//pColors[i_dTarget].set(pxl[0]*255, pxl[1]*255, pxl[2]*255);
 
-				//cPoint.z = (float)vertices[dy*width + dx].z;
-				//if (cPoint.z > mPointCloudRange.x && cPoint.z < mPointCloudRange.y) {
-				//	depthPoints.push_back(cPoint);
-				//}
+				pColors[i_dTarget].r = pxl[0] * 255;
+				pColors[i_dTarget].g = pxl[1] * 255;
+				pColors[i_dTarget].b = pxl[2] * 255;
+
 			}
 		}
 
 		float lastTime = ofGetElapsedTimef();
 
+		cout << "final depth point cloud size: " << mPointCloud.getVertices().size() << endl;
+
 		cout << "elapsed time " << lastTime - firstTime  << endl;
 
-		/*
-		worldPoints.resize(depthPoints.size());
-
-		for (int i = 0; i < depthPoints.size();++i)
-		{
-			rs2::vertex p = worldPoints[i];
-			mPointCloudVertices.push_back(ofVec3f(p.x, p.y, p.z));
-		}
-		*/
-
-		cout << "final depth point cloud size: " << mPointCloudVertices.size() << endl;
 	}
 
-	bool RSDevice::draw(float width, float height, float offset, float pitch, float yaw, ofTexture texture)
+	bool RSDevice::draw()
 	{
-		if (!rs2Points)
-			return false;
-
-		cout << "drawing pointcloud: " << rs2Points.get_frame_number() << endl;
-
-		// OpenGL commands that prep screen for the pointcloud
-		glPopMatrix();
-		glPushAttrib(GL_ALL_ATTRIB_BITS);
-
-		glClearColor(153.f / 255, 153.f / 255, 153.f / 255, 1);
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		gluPerspective(60, width / height, 0.01f, 10.0f);
-
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0);
-
-		glTranslatef(0, 0, +0.5f + offset*0.05f);
-		glRotated(pitch, 1, 0, 0);
-		glRotated(yaw, 0, 1, 0);
-		glTranslatef(0, 0, -0.5f);
-
-		glPointSize(width / 640);
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_TEXTURE_2D);
-
-		float tex_border_color[] = { 0.8f, 0.8f, 0.8f, 0.8f };
-		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, tex_border_color);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, 0x812F); // GL_CLAMP_TO_EDGE
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, 0x812F); // GL_CLAMP_TO_EDGE
-		glBegin(GL_POINTS);
-
-		/* this segment actually prints the pointcloud */
-		auto vertices = rs2Points.get_vertices();              // get vertices
-		auto tex_coords = rs2Points.get_texture_coordinates(); // and texture coordinates
-		for (int i = 0; i < rs2Points.size(); i++)
-		{
-			if (vertices[i].z)
-			{
-				// upload the point and texture coordinates only for points we have depth data for
-				glVertex3fv(vertices[i]);
-				glColor3f(1., 0., 0.);
-				//glTexCoord2fv(tex_coords[i]);
-			}
-		}
-
-		// OpenGL cleanup
-		glEnd();
-		glPopMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glPopAttrib();
-		glPushMatrix();
-
+		mPointCloud.draw();
 		return true;
 	}
 #pragma endregion
@@ -272,9 +220,14 @@ namespace ofxRSSDK
 		return mDepthToColorFrame;
 	}
 
-	vector<glm::vec3> RSDevice::getPointCloud()
+	ofMesh RSDevice::getPointCloud()
 	{
-		return mPointCloudVertices;
+		return mPointCloud;
+	}
+
+	vector<glm::vec3> & RSDevice::getPointCloudVertices()
+	{
+		return mPointCloud.getVertices();
 	}
 
 	//Nomenclature Notes:

@@ -17,26 +17,6 @@ void ofApp::setup()
 void ofApp::update()
 {
 	mRSSDK->update();
-
-	mCloudMesh.clear();
-	mCloudMesh.setMode(OF_PRIMITIVE_POINTS);
-	mCloudMesh.enableColors();
-
-	vector<glm::vec3> pointCloud = mRSSDK->getPointCloud();
-
-	cout << "point cloud size: " << pointCloud.size() << endl;
-
-	float firstTime = ofGetElapsedTimef();
-
-	//mCloudMesh.addVertices(pointCloud);
-
-	// copies pointCloud into vertices (there must be a faster way...)
-	mCloudMesh.getVertices() = pointCloud;
-	
-	float lastTime = ofGetElapsedTimef();
-
-	cout << "create mesh elapsed time " << lastTime - firstTime << endl;
-
 }
 
 //--------------------------------------------------------------
@@ -45,10 +25,10 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
-	//ofTexture tex;
-	//tex.loadData(mRSSDK->getRgbFrame());
+	ofTexture tex;
+	tex.loadData(mRSSDK->getRgbFrame());
 	//tex.loadData(mRSSDK->getDepthFrame());
-	//tex.draw(0, 0);
+	tex.draw(0, 0);
 
 	//mRSSDK->draw(1280, 720, 10., 0., 0., tex);
 
@@ -57,7 +37,7 @@ void ofApp::draw()
 
 	ofPushMatrix();
 	ofScale(100, 100, 100);
-	mCloudMesh.draw();
+	mRSSDK->draw();
 	ofPopMatrix();
 
 	mCamera.end();
