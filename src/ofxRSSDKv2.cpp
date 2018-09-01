@@ -172,9 +172,15 @@ namespace ofxRSSDK
 				
 				//pColors[i_dTarget].set(pxl[0]*255, pxl[1]*255, pxl[2]*255);
 
-				pColors[i_dTarget].r = pxl[0] * 255;
-				pColors[i_dTarget].g = pxl[1] * 255;
-				pColors[i_dTarget].b = pxl[2] * 255;
+				pColors[i_dTarget].r = pxl[0];
+				pColors[i_dTarget].g = pxl[1];
+				pColors[i_dTarget].b = pxl[2];
+
+				/*
+				if (i_dTarget > 1000 && i_dTarget < 1200) {
+					cout << "color value at: " << i_dTarget << " red:" << pxl[0] << " green:" << pxl[1] << " blue:" << pxl[2] << endl;
+				}
+				*/
 
 			}
 		}
