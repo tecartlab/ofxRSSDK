@@ -18,26 +18,24 @@ void ofApp::update()
 {
 	mRSSDK->update();
 
-	/*
 	mCloudMesh.clear();
 	mCloudMesh.setMode(OF_PRIMITIVE_POINTS);
 	mCloudMesh.enableColors();
 
-	//TODO: Figure out a better way to work with BGRA pixels
-	vector<ofVec3f> pointCloud = mRSSDK->getPointCloud();
+	vector<glm::vec3> pointCloud = mRSSDK->getPointCloud();
 
 	cout << "point cloud size: " << pointCloud.size() << endl;
 
-	for(vector<ofVec3f>::iterator p=pointCloud.begin();p!=pointCloud.end();++p)
-	{
-		mCloudMesh.addVertex(*p);
-//		ofColor c = mRSSDK->getColorFromDepthSpace(*p);
-//		mCloudMesh.addColor(ofColor(c.b, c.g, c.r));
-//		mCloudMesh.addColor(ofColor(p->x * 255, p->y * 255, p->z * 255));
-		mCloudMesh.addColor(ofColor(255, p->y * 255, p->z * 255));
-	}
+	float firstTime = ofGetElapsedTimef();
 
-	*/
+	//mCloudMesh.addVertices(pointCloud);
+
+	// copies pointCloud into vertices (there must be a faster way...)
+	mCloudMesh.getVertices() = pointCloud;
+	
+	float lastTime = ofGetElapsedTimef();
+
+	cout << "create mesh elapsed time " << lastTime - firstTime << endl;
 
 }
 
@@ -47,16 +45,22 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
-	ofTexture tex;
-	tex.loadData(mRSSDK->getRgbFrame());
+	//ofTexture tex;
+	//tex.loadData(mRSSDK->getRgbFrame());
 	//tex.loadData(mRSSDK->getDepthFrame());
 	//tex.draw(0, 0);
 
-	mRSSDK->draw(1280, 720, 10., 0., 0., tex);
+	//mRSSDK->draw(1280, 720, 10., 0., 0., tex);
 
-	//mCamera.begin();
-	//mCloudMesh.draw(); 
-	//mCamera.end();
+
+	mCamera.begin(); 
+
+	ofPushMatrix();
+	ofScale(100, 100, 100);
+	mCloudMesh.draw();
+	ofPopMatrix();
+
+	mCamera.end();
 }
 
 

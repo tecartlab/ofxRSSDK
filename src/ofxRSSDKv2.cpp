@@ -1,34 +1,7 @@
 #include <exception>
 #include "ofxRSSDKv2.h"
 #include "ofMain.h"
-#include <gl/gl.h>
-#include <gl/glu.h>
 
-#pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "glu32.lib")
-
-#ifndef STBIW_MALLOC
-#define STBIW_MALLOC(sz)        malloc(sz)
-#define STBIW_REALLOC(p,newsz)  realloc(p,newsz)
-#define STBIW_FREE(p)           free(p)
-#endif
-
-#ifndef STBIW_REALLOC_SIZED
-#define STBIW_REALLOC_SIZED(p,oldsz,newsz) STBIW_REALLOC(p,newsz)
-#endif
-
-
-#ifndef STBIW_MEMMOVE
-#define STBIW_MEMMOVE(a,b,sz) memmove(a,b,sz)
-#endif
-
-
-#ifndef STBIW_ASSERT
-#include <assert.h>
-#define STBIW_ASSERT(x) assert(x)
-#endif
-
-#define STBIW_UCHAR(x) (unsigned char) ((x) & 0xff)
 
 namespace ofxRSSDK
 {
@@ -146,7 +119,7 @@ namespace ofxRSSDK
 		
 		cout << "depth point cloud w: " << width << " h: " << height << endl;
 
-		//vector<rs2::vertex> depthPoints, worldPoints;
+		vector<rs2::vertex> depthPoints, worldPoints;
 
 		auto vertices = rs2Points.get_vertices();              // get vertices
 		auto textureUVs = rs2Points.get_texture_coordinates();
@@ -154,21 +127,37 @@ namespace ofxRSSDK
 		if (mPointCloudVertices.size() == 0) {
 			cout << "create new vector: " << endl;
 			mPointCloudVertices.resize(height * width / (step * step));
-			for (int i = 0; i < mPointCloudVertices.size(); ++i) {
-				mPointCloudVertices[i] = ofVec3f(0, 0, 0);
-			}
+			std::fill(mPointCloudVertices.begin(), mPointCloudVertices.end(), glm::vec3(0, 0, 0));
 		}
+		
+		float firstTime = ofGetElapsedTimef();  
+
+		glm::vec3 vec = glm::vec3(0, 0, 0);
+
+		glm::vec3* p = mPointCloudVertices.data();
 
 		int indexA, indexB;
 		for (int dy = 0; dy < height; dy+=step)
 		{
 			for (int dx = 0; dx < width; dx+=step)
 			{
+
 				indexA = dy * width + dx;
-				indexB = dy * width / step + dx / step;
+				indexB = dy * width / (step * step) + dx / step;
+				//indexB = indexA / width;
+
+				p[indexB].x = vertices[indexA].x;
+				p[indexB].y = vertices[indexA].y;
+				p[indexB].z = vertices[indexA].z;
+				
+				
+				/*
+				mPointCloudVertices[indexB] = glm::vec3(vertices[indexA].x, vertices[indexA].y, vertices[indexA].z);
+				mPointCloudVertices[indexB].set(vertices[indexA].x, vertices[indexA].y, vertices[indexA].z);
 				mPointCloudVertices[indexB].x = vertices[indexA].x;
 				mPointCloudVertices[indexB].y = vertices[indexA].y;
 				mPointCloudVertices[indexB].z = vertices[indexA].z;
+				*/
 
 				//cPoint.z = (float)vertices[dy*width + dx].z;
 				//if (cPoint.z > mPointCloudRange.x && cPoint.z < mPointCloudRange.y) {
@@ -177,7 +166,9 @@ namespace ofxRSSDK
 			}
 		}
 
-		// cout << "depth point cloud size: " << depthPoints.size() << endl;
+		float lastTime = ofGetElapsedTimef();
+
+		cout << "elapsed time " << lastTime - firstTime  << endl;
 
 		/*
 		worldPoints.resize(depthPoints.size());
@@ -281,7 +272,7 @@ namespace ofxRSSDK
 		return mDepthToColorFrame;
 	}
 
-	vector<ofVec3f> RSDevice::getPointCloud()
+	vector<glm::vec3> RSDevice::getPointCloud()
 	{
 		return mPointCloudVertices;
 	}
@@ -388,7 +379,7 @@ namespace ofxRSSDK
 	}
 
 		//get ofColor space UVs from a depth image point
-	const ofVec2f RSDevice::getColorCoordsFromDepthImage(float pImageX, float pImageY, float pImageZ)
+	const glm::vec2 RSDevice::getColorCoordsFromDepthImage(float pImageX, float pImageY, float pImageZ)
 	{
 		/**
 		if (mCoordinateMapper)
@@ -414,18 +405,18 @@ namespace ofxRSSDK
 		return ofVec2f(0);
 	}
 
-	const ofVec2f RSDevice::getColorCoordsFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ)
+	const glm::vec2 RSDevice::getColorCoordsFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ)
 	{
 		return getColorCoordsFromDepthImage(static_cast<float>(pImageX), static_cast<float>(pImageY), static_cast<float>(pImageZ));
 	}
 
-	const ofVec2f RSDevice::getColorCoordsFromDepthImage(ofPoint pImageCoords)
+	const glm::vec2 RSDevice::getColorCoordsFromDepthImage(ofPoint pImageCoords)
 	{
 		return getColorCoordsFromDepthImage(pImageCoords.x, pImageCoords.y, pImageCoords.z);
 	}
 
 		//get ofColor space UVs from a depth space point
-	const ofVec2f RSDevice::getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ)
+	const glm::vec2 RSDevice::getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ)
 	{
 		/**
 		if (mCoordinateMapper)
@@ -444,10 +435,10 @@ namespace ofxRSSDK
 			return cRetPt;
 		}
 		**/
-		return ofVec2f(0);
+		return glm::vec2();
 	}
 
-	const ofVec2f RSDevice::getColorCoordsFromDepthSpace(ofPoint pCameraPoint)
+	const glm::vec2 RSDevice::getColorCoordsFromDepthSpace(ofPoint pCameraPoint)
 	{
 		return getColorCoordsFromDepthSpace(pCameraPoint.x, pCameraPoint.y, pCameraPoint.z);
 	}

@@ -14,6 +14,35 @@
 #include <iostream>             // Terminal IO
 #include <sstream>              // Stringstreams
 
+#include <gl/gl.h>
+#include <gl/glu.h>
+
+#pragma comment(lib, "opengl32.lib")
+#pragma comment(lib, "glu32.lib")
+
+#ifndef STBIW_MALLOC
+#define STBIW_MALLOC(sz)        malloc(sz)
+#define STBIW_REALLOC(p,newsz)  realloc(p,newsz)
+#define STBIW_FREE(p)           free(p)
+#endif
+
+#ifndef STBIW_REALLOC_SIZED
+#define STBIW_REALLOC_SIZED(p,oldsz,newsz) STBIW_REALLOC(p,newsz)
+#endif
+
+
+#ifndef STBIW_MEMMOVE
+#define STBIW_MEMMOVE(a,b,sz) memmove(a,b,sz)
+#endif
+
+
+#ifndef STBIW_ASSERT
+#include <assert.h>
+#define STBIW_ASSERT(x) assert(x)
+#endif
+
+#define STBIW_UCHAR(x) (unsigned char) ((x) & 0xff)
+
 using namespace std;
 
 namespace ofxRSSDK
@@ -74,7 +103,9 @@ namespace ofxRSSDK
 		const ofPixels&	getDepth8uFrame();
 		const ofPixels&	getColorMappedToDepthFrame();
 		const ofPixels&	getDepthMappedToColorFrame();
-		vector<ofVec3f> getPointCloud();
+
+		vector<glm::vec3> getPointCloud();
+
 		//Nomenclature Notes:
 		//	"Space" denotes a 3d coordinate
 		//	"Image" denotes an image space point ((0, width), (0,height), (image depth))
@@ -96,19 +127,19 @@ namespace ofxRSSDK
 		const ofColor		getColorFromDepthSpace(ofPoint pCameraPoint);
 
 		//get ofColor space UVs from a depth image point
-		const ofVec2f		getColorCoordsFromDepthImage(float pImageX, float pImageY, float pImageZ);
-		const ofVec2f		getColorCoordsFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ);
-		const ofVec2f		getColorCoordsFromDepthImage(ofPoint pImageCoords);
+		const glm::vec2		getColorCoordsFromDepthImage(float pImageX, float pImageY, float pImageZ);
+		const glm::vec2		getColorCoordsFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ);
+		const glm::vec2		getColorCoordsFromDepthImage(ofPoint pImageCoords);
 
 		//get ofColor space UVs from a depth space point
-		const ofVec2f		getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ);
-		const ofVec2f		getColorCoordsFromDepthSpace(ofPoint pCameraPoint);
+		const glm::vec2		getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ);
+		const glm::vec2		getColorCoordsFromDepthSpace(ofPoint pCameraPoint);
 
-		const ofVec2f&	getDepthSize() { return mDepthSize;  }
+		const glm::vec2&	getDepthSize() { return mDepthSize;  }
 		const int		getDepthWidth() { return mDepthSize.x;  }
 		const int		getDepthHeight() { return mDepthSize.y; }
 
-		const ofVec2f&	getRgbSize() { return mRgbSize; }
+		const glm::vec2&	getRgbSize() { return mRgbSize; }
 		const int		getRgbWidth() { return mRgbSize.x; }
 		const int		getRgbHeight() { return mRgbSize.y; }
 
@@ -126,9 +157,9 @@ namespace ofxRSSDK
 		AlignMode		mAlignMode;
 		CloudRes		mCloudRes;
 
-		ofVec2f			mPointCloudRange;
-		ofVec2f			mDepthSize;
-		ofVec2f			mRgbSize;
+		glm::vec2			mPointCloudRange;
+		glm::vec2			mDepthSize;
+		glm::vec2			mRgbSize;
 		ofPixels		mRgbFrame;
 		ofPixels		mDepth8uFrame;
 		ofPixels		mColorToDepthFrame;
@@ -152,9 +183,9 @@ namespace ofxRSSDK
 		// current frame
 		rs2::frameset rs2FrameSet;
 
-		vector<ofVec3f>			mPointCloudVertices;
-		vector<ofVec3f>			mPointCloudUVs;
-		vector<ofVec3f>			mPointCloudColors;
+		vector<glm::vec3>			mPointCloudVertices;
+		vector<glm::vec3>			mPointCloudUVs;
+		vector<glm::vec3>			mPointCloudColors;
 
 		uint16_t				*mRawDepth;
 	};
