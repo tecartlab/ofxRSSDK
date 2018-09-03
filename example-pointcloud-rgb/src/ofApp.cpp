@@ -3,7 +3,7 @@
 //--------------------------------------------------------------
 void ofApp::setup()
 {
-	ofSetWindowShape(1280, 720);
+	ofSetWindowShape(1280, 960);
 	mRSSDK = RSDevice::createUniquePtr();
 
 	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
@@ -16,7 +16,13 @@ void ofApp::setup()
 //--------------------------------------------------------------
 void ofApp::update()
 {
-	mRSSDK->update();
+	if (mRSSDK->update()) {
+		// Generate the pointcloud with the default colors
+		//mRSSDK->updatePointCloud();
+		//Generate the pointcloud with specified ofPixels objects
+		//mRSSDK->updatePointCloud(mRSSDK->getDepthFrame());
+		mRSSDK->updatePointCloud(mRSSDK->getRgbFrame());
+	}
 }
 
 //--------------------------------------------------------------
@@ -25,12 +31,13 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
-	ofTexture tex;
-	tex.loadData(mRSSDK->getRgbFrame());
-	//tex.loadData(mRSSDK->getDepthFrame());
-	tex.draw(0, 0);
+	ofTexture texRGB;
+	texRGB.loadData(mRSSDK->getRgbFrame());
+	texRGB.draw(0, 0);
 
-	//mRSSDK->draw(1280, 720, 10., 0., 0., tex);
+	ofTexture texDepth;
+	texDepth.loadData(mRSSDK->getDepthFrame());
+	texDepth.draw(ofGetWidth() / 2., ofGetHeight() / 2.);
 
 
 	mCamera.begin(); 

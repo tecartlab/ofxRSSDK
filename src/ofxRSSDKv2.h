@@ -14,11 +14,6 @@
 #include <iostream>             // Terminal IO
 #include <sstream>              // Stringstreams
 
-#include <gl/gl.h>
-#include <gl/glu.h>
-
-#pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "glu32.lib")
 
 #ifndef STBIW_MALLOC
 #define STBIW_MALLOC(sz)        malloc(sz)
@@ -100,7 +95,7 @@ namespace ofxRSSDK
 
 		const ofPixels&	getRgbFrame();
 		const ofPixels&	getDepthFrame();
-		const ofPixels&	getDepth8uFrame();
+
 		const ofPixels&	getColorMappedToDepthFrame();
 		const ofPixels&	getDepthMappedToColorFrame();
 
@@ -144,8 +139,10 @@ namespace ofxRSSDK
 		const int		getRgbWidth() { return mRgbSize.x; }
 		const int		getRgbHeight() { return mRgbSize.y; }
 
+		void			updatePointCloud();
+		void			updatePointCloud(ofPixels colors);
+
 	private:
-		void			updatePointCloud(rs2::frame depthFrame, rs2::video_frame texture, ofPixels colors);
 
 		bool			mIsInit,
 			mIsRunning,
@@ -162,11 +159,12 @@ namespace ofxRSSDK
 		glm::vec2			mPointCloudRange;
 		glm::vec2			mDepthSize;
 		glm::vec2			mRgbSize;
+
 		ofPixels		mRgbFrame;
-		ofPixels		mDepth8uFrame;
+		ofPixels		mDepthFrame;
+
 		ofPixels		mColorToDepthFrame;
 		ofPixels		mDepthToColorFrame;
-		ofPixels		mDepthFrame;
 
 		// Declare depth colorizer for pretty visualization of depth data
 		rs2::colorizer rs2Color_map;
@@ -184,6 +182,9 @@ namespace ofxRSSDK
 
 		// current frame
 		rs2::frameset rs2FrameSet;
+
+		// current Depth frame
+		rs2::frame rs2Depth;
 
 		ofMesh mPointCloud;
 

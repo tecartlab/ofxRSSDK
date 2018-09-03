@@ -34,6 +34,17 @@ namespace ofxRSSDK
 		mPointCloud.setMode(OF_PRIMITIVE_POINTS);
 		mPointCloud.enableColors();
 
+		//Create a configuration for configuring the pipeline with a non default profile
+		//rs2::config cfg;
+
+		//Add desired streams to configuration
+		//cfg.enable_stream(RS2_STREAM_DEPTH, RS2_FORMAT_Z16); // Enable default depth
+											 // For the color stream, set format to RGBA
+											 // To allow blending of the color frame on top of the depth frame
+		//cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGB8);
+		//cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 720, RS2_FORMAT_Z16, 30);
+		//cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_RGB8, 30);
+		
 		rs2PipeLineProfile = rs2Pipe.start();
 
 		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
@@ -43,14 +54,6 @@ namespace ofxRSSDK
 		mRgbSize.y = color_sream.height();
 		mDepthSize.x = depth_stream.width();
 		mDepthSize.y = depth_stream.height();
-
-		/**
-		auto resolution = std::make_pair(depth_stream.width(), depth_stream.height());
-		auto i = depth_stream.get_intrinsics();
-		auto principal_point = std::make_pair(i.ppx, i.ppy);
-		auto focal_length = std::make_pair(i.fx, i.fy);
-		rs2_distortion model = i.model;
-		**/
 
 		if (mShouldAlign)
 		{
@@ -71,12 +74,12 @@ namespace ofxRSSDK
 	{
 		if (rs2Pipe.poll_for_frames(&rs2FrameSet))
 		{
-			auto rs2DepthFrame = rs2FrameSet.first(RS2_STREAM_DEPTH);
+			rs2Depth = rs2FrameSet.first(RS2_STREAM_DEPTH);
 	
-			if (rs2DepthFrame)
+			if (rs2Depth)
 			{
 				// Use the colorizer to get an rgb image for the depth stream
-				auto rs2DepthVideoFrame = rs2Color_map(rs2DepthFrame);
+				auto rs2DepthVideoFrame = rs2Color_map(rs2Depth);
 
 				mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), rs2DepthVideoFrame.get_width(), rs2DepthVideoFrame.get_height(), 3);
 			}
@@ -87,11 +90,6 @@ namespace ofxRSSDK
 			{
 				mRgbFrame.setFromExternalPixels((unsigned char *)rs2VideoFrame.get_data(), rs2VideoFrame.get_width(), rs2VideoFrame.get_height(), 3);
 			}
-
-			// Generate the pointcloud and texture mapping	s
-			updatePointCloud(rs2DepthFrame, rs2VideoFrame, mRgbFrame);
-
-			mHasChangedResolution = false;
 			return true;
 		}
 	
@@ -110,15 +108,20 @@ namespace ofxRSSDK
 #pragma endregion
 
 #pragma region Update
-	void RSDevice::updatePointCloud(rs2::frame depthFrame, rs2::video_frame texture, ofPixels colors)
+	void RSDevice::updatePointCloud()
 	{
+		if (mRgbFrame.size()) {
+			updatePointCloud(mRgbFrame);
+		}
+		else {
+			updatePointCloud(mDepthFrame);
+		}
+	}
 
-		cout << "calculate pc: " << endl;
-
+	void RSDevice::updatePointCloud(ofPixels colors)
+	{
 		// Generate the pointcloud and texture mapping	s
-		rs2Points = rs2PointCloud.calculate(depthFrame);
-
-		rs2PointCloud.map_to(texture);
+		rs2Points = rs2PointCloud.calculate(rs2Depth);
 
 		int dWidth = (int)mDepthSize.x;
 		int dHeight = (int)mDepthSize.y;
@@ -126,31 +129,31 @@ namespace ofxRSSDK
 		int cHeight = colors.getHeight();
 
 		int step = (int)mCloudRes;
-		
-		cout << "depth point cloud w: " << dWidth << " h: " << dHeight << endl;
 
-		auto vertices = rs2Points.get_vertices();              // get vertices
-		auto textureUVs = rs2Points.get_texture_coordinates();
+		int length = dHeight * dWidth / (step * step);
 
-		if (mHasChangedResolution) {
+		if (length != mPointCloud.getVertices().size()) {
 			mPointCloud.clear();
-			mPointCloud.setMode(OF_PRIMITIVE_POINTS);
-			mPointCloud.enableColors();
-			for (int i = 0; i < dHeight * dWidth / (step * step); i++) {
+			for (int i = 0; i < length; i++) {
 				mPointCloud.addVertex(glm::vec3(0, 0, 0));
 				mPointCloud.addColor(ofDefaultColorType());
 			}
-			cout << "created new mesh: " << dHeight << "/" << dWidth << endl;
+			cout << "created new depth point cloud w: " << dWidth << " h: " << dHeight << endl;
+			//cout << "created new mesh: " << dHeight << "/" << dWidth << endl;
 		}
 		
-		float firstTime = ofGetElapsedTimef();  
+		//float firstTime = ofGetElapsedTimef();  
+
+		auto vertices = rs2Points.get_vertices();              // get vertices
 
 		glm::vec3* pVertices = mPointCloud.getVerticesPointer();
 		ofDefaultColorType* pColors = mPointCloud.getColorsPointer();
 
-		int i_dOrig, i_dTarget, i_cOrig;
-		float relHeight = cHeight / dHeight;
-		float relWidth = cWidth / dWidth;
+		int i_dOrig, i_dTarget;
+		float relHeight = (float)cHeight / (float)dHeight;
+		float relWidth = (float)cWidth / (float)dWidth;
+
+		//cout << "relHeight: " << relHeight << " relWidth: " << relWidth << endl;
 
 		for (int dy = 0; dy < dHeight; dy+=step)
 		{
@@ -170,31 +173,24 @@ namespace ofxRSSDK
 				pVertices[i_dTarget].y = vertices[i_dOrig].y;
 				pVertices[i_dTarget].z = vertices[i_dOrig].z;
 				
-				//pColors[i_dTarget].set(pxl[0]*255, pxl[1]*255, pxl[2]*255);
-
-				pColors[i_dTarget].r = pxl[0];
-				pColors[i_dTarget].g = pxl[1];
-				pColors[i_dTarget].b = pxl[2];
-
-				/*
-				if (i_dTarget > 1000 && i_dTarget < 1200) {
-					cout << "color value at: " << i_dTarget << " red:" << pxl[0] << " green:" << pxl[1] << " blue:" << pxl[2] << endl;
-				}
-				*/
-
+				pColors[i_dTarget].r = pxl[0] / 255.;
+				pColors[i_dTarget].g = pxl[1] / 255.;
+				pColors[i_dTarget].b = pxl[2] / 255.;
 			}
 		}
 
+		/*
 		float lastTime = ofGetElapsedTimef();
-
 		cout << "final depth point cloud size: " << mPointCloud.getVertices().size() << endl;
-
 		cout << "elapsed time " << lastTime - firstTime  << endl;
+		*/
 
 	}
 
 	bool RSDevice::draw()
 	{
+		mPointCloud.setMode(OF_PRIMITIVE_POINTS);
+		mPointCloud.enableColors();
 		mPointCloud.draw();
 		return true;
 	}
@@ -209,11 +205,6 @@ namespace ofxRSSDK
 	const ofPixels& RSDevice::getDepthFrame()
 	{
 		return mDepthFrame;
-	}
-
-	const ofPixels& RSDevice::getDepth8uFrame()
-	{
-		return mDepth8uFrame;
 	}
 
 	const ofPixels& RSDevice::getColorMappedToDepthFrame()
