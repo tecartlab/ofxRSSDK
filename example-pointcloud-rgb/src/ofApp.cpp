@@ -48,6 +48,9 @@ void ofApp::draw()
 	ofPopMatrix();
 
 	mCamera.end();
+
+	ofDrawBitmapString("fps: " + ofToString(ofGetFrameRate()), ofGetWidth() - 200, 10);
+
 }
 
 

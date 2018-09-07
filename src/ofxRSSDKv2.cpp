@@ -70,6 +70,10 @@ namespace ofxRSSDK
 		return true;
 	}
 
+	bool RSDevice::isRunning() {
+		return mIsRunning;
+	}
+
 	bool RSDevice::update()
 	{
 		if (rs2Pipe.poll_for_frames(&rs2FrameSet))
@@ -99,6 +103,7 @@ namespace ofxRSSDK
 	bool RSDevice::stop()
 	{
 		rs2Pipe.stop();
+		mIsRunning = false;
 		return true;
 		
 	}
@@ -194,6 +199,29 @@ namespace ofxRSSDK
 		mPointCloud.draw();
 		return true;
 	}
+
+	bool RSDevice::drawColor(const ofRectangle & rect)
+	{
+		if (mRgbFrame.getWidth() > 0) {
+			ofTexture texRGB;
+			texRGB.loadData(mRgbFrame);
+			texRGB.draw(rect.x, rect.y, rect.width, rect.height);
+			return true;
+		}
+		return false;
+	}
+
+	bool RSDevice::drawDepth(const ofRectangle & rect)
+	{
+		if (mDepthFrame.getWidth() > 0) {
+			ofTexture texRGB;
+			texRGB.loadData(mDepthFrame);
+			texRGB.draw(rect.x, rect.y, rect.width, rect.height);
+			return true;
+		}
+		return false;
+	}
+
 #pragma endregion
 
 #pragma region Getters

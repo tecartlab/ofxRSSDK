@@ -92,6 +92,10 @@ namespace ofxRSSDK
 		bool stop();
 
 		bool draw();
+		bool drawColor(const ofRectangle & rect);
+		bool drawDepth(const ofRectangle & rect);
+
+		bool isRunning();
 
 		const ofPixels&	getRgbFrame();
 		const ofPixels&	getDepthFrame();
