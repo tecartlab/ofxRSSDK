@@ -8,7 +8,16 @@
 // howtos: https://github.com/IntelRealSense/librealsense/wiki/API-How-To#get-depth-units
 
 namespace ofxRSSDK
-{
+{	
+	Disparity::~Disparity(){}
+
+	Disparity::Disparity(){
+		rs2::disparity_transform depth_to_disp(true);
+		rs2::disparity_transform disp_to_depth(false);
+		filter_in = depth_to_disp;
+		filter_out = disp_to_depth;
+	}
+
 	RSDevice::~RSDevice(){}
 
 	RSDevice::RSDevice(){
@@ -21,6 +30,10 @@ namespace ofxRSSDK
 		mShouldGetPointCloud = false;
 		mPointCloudRange = ofVec2f(0,3000);
 		mCloudRes = CloudRes::FULL_RES;
+		isUsingFilterDec = false;
+		isUsingFilterSpat = false;
+		isUsingFilterTemp = false;
+		isUsingFilterDisparity = false;
 	}
 
 #pragma region Init
@@ -30,6 +43,30 @@ namespace ofxRSSDK
 	void RSDevice::setPointCloudRange(float pMin=100.0f, float pMax=1500.0f)
 	{
 		mPointCloudRange = ofVec2f(pMin,pMax);
+	}
+
+	void RSDevice::useFilterDecimation(int magnitude) {
+		rs2Filter_dec.set_option(RS2_OPTION_FILTER_MAGNITUDE, magnitude);
+		isUsingFilterDec = true;
+	}
+
+	void RSDevice::useFilterSpatialEdgePreserve(int magnitude, float smoothAlpha, int smoothDelta, int holeFilling) {
+		rs2Filter_spat.set_option(RS2_OPTION_FILTER_MAGNITUDE, magnitude);
+		rs2Filter_spat.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, smoothAlpha);
+		rs2Filter_spat.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA , smoothDelta);
+		rs2Filter_spat.set_option(RS2_OPTION_HOLES_FILL, holeFilling);
+		isUsingFilterSpat = true;
+	}
+
+	void RSDevice::useFilterTemporal(float smoothAlpha, int smoothDelta, int persitency) {
+		rs2Filter_temp.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, smoothAlpha);
+		rs2Filter_temp.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, smoothDelta);
+		rs2Filter_temp.set_option(RS2_OPTION_HOLES_FILL, persitency);
+		isUsingFilterTemp = true;
+	}
+
+	void RSDevice::useFilterDisparity() {
+		isUsingFilterDisparity = true;
 	}
 
 	bool RSDevice::start()
@@ -50,14 +87,20 @@ namespace ofxRSSDK
 		//cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_RGB8, 30);
 		
 		rs2PipeLineProfile = rs2Pipe.start();
+		
+		// Declare filters
+		rs2::decimation_filter dec_filter;
+		rs2::spatial_filter spat_filter;
+
+		// Configure filter parameters
+		dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 3.);
+		spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.55f);
 
 		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
 		auto color_sream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
 
 		mRgbSize.x = color_sream.width();
 		mRgbSize.y = color_sream.height();
-		mDepthSize.x = depth_stream.width();
-		mDepthSize.y = depth_stream.height();
 
 		if (mShouldAlign)
 		{
@@ -86,10 +129,29 @@ namespace ofxRSSDK
 	
 			if (rs2Depth)
 			{
+				if (isUsingFilterDec) {
+					rs2Depth = rs2Filter_dec.process(rs2Depth);
+				}
+				if (isUsingFilterDisparity) {
+					rs2Depth = rs2Filter_disparity.filter_in.process(rs2Depth);
+				}
+				if (isUsingFilterSpat) {
+					rs2Depth = rs2Filter_spat.process(rs2Depth);
+				}
+				if (isUsingFilterTemp) {
+					rs2Depth = rs2Filter_temp.process(rs2Depth);
+				}
+				if (isUsingFilterDisparity) {
+					rs2Depth = rs2Filter_disparity.filter_out.process(rs2Depth);
+				}
+
 				// Use the colorizer to get an rgb image for the depth stream
 				auto rs2DepthVideoFrame = rs2Color_map(rs2Depth);
 
-				mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), rs2DepthVideoFrame.get_width(), rs2DepthVideoFrame.get_height(), 3);
+				mDepthSize.x = rs2DepthVideoFrame.get_width();
+				mDepthSize.y = rs2DepthVideoFrame.get_height();
+
+				mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), mDepthSize.x, mDepthSize.y, 3);
 			}
 
 			auto rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_COLOR).as<rs2::video_frame>();

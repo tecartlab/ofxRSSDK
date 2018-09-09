@@ -9,6 +9,11 @@ void ofApp::setup()
 	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
 	mRSSDK->setPointCloudRange(100.0f,1000.0f);
 
+	mRSSDK->useFilterDecimation(8);
+	mRSSDK->useFilterSpatialEdgePreserve(2, 0.5, 20, 0);
+	mRSSDK->useFilterTemporal(0.4, 20, 3);
+	mRSSDK->useFilterDisparity();
+
 	mRSSDK->start();
 	setupCamera();
 }
@@ -20,8 +25,8 @@ void ofApp::update()
 		// Generate the pointcloud with the default colors
 		//mRSSDK->updatePointCloud();
 		//Generate the pointcloud with specified ofPixels objects
-		//mRSSDK->updatePointCloud(mRSSDK->getDepthFrame());
-		mRSSDK->updatePointCloud(mRSSDK->getRgbFrame());
+		mRSSDK->updatePointCloud(mRSSDK->getDepthFrame());
+		//mRSSDK->updatePointCloud(mRSSDK->getRgbFrame());
 	}
 }
 
@@ -31,14 +36,8 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
-	ofTexture texRGB;
-	texRGB.loadData(mRSSDK->getRgbFrame());
-	texRGB.draw(0, 0);
-
-	ofTexture texDepth;
-	texDepth.loadData(mRSSDK->getDepthFrame());
-	texDepth.draw(ofGetWidth() / 2., ofGetHeight() / 2.);
-
+	//mRSSDK->drawColor(ofRectangle(0, 0, ofGetWidth() / 2., ofGetHeight() / 2.));
+	//mRSSDK->drawDepth(ofRectangle(ofGetWidth() / 2., ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
 
 	mCamera.begin(); 
 
