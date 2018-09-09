@@ -1,12 +1,12 @@
-# RealSense SDK addon for openframeworks 0.9.x
-__Under Construction__
+# RealSense SDK addon for openframeworks 0.10.x
+## Under Construction
 
 Currently supported:
 * RGB Streaming
 * Depth Streaming (Raw Depth and Depth as Color)
 * Point Cloud
 
-__Cameras__
+## Cameras
 
 Tested:
     Intel® RealSense™ Depth Cameras D435
@@ -17,7 +17,7 @@ Untested:
     Intel® RealSense™ Vision Processor D4m
     Intel® RealSense™ Tracking Module (limited support)
 
-__Supported Platforms__
+## Supported Platforms
 
 Tested:
     Windows 10 (Build 1803 or later)
@@ -29,11 +29,29 @@ Untested:
 
 ****hardware frame synchronization is not available for the D400 series
 
-__Dependecies__
+### Dependecies
 
+Microsoft Visual Studio Community edition 2017 https://visualstudio.microsoft.com/de/downloads/
 Intel® RealSense™ SDK 2.0 (build 2.16.0) https://github.com/IntelRealSense/librealsense
+Openframeworks release 0.10.0 [download page](http://openframeworks.cc/download).
+Openframeworks addon [ofxRSSDK](https://github.com/tecartlab/ofxRSSDK)
+Openframeworks addon [ofxGuiExtended](https://github.com/frauzufall/ofxGuiExtended)
 
-__credits__
+### Instructions
+
+drop this repositoriy into the \<openframeworksfolder>/apps/\<yourappfolder>
+
+drop the addons into the \<openframeworksfolder>/addons/ folder
+
+#### Visual Studio
+Examles require to be linked to the installed RealSense SDK. All the examples assume the SDK is installed under C:\Program Files(x86)\Intel RealSense SDK 2.0
+
+if otherwise, change the following:
+
+* Menu > Project > Properties > C/C++ > General > Additional Include directories > (Edit...) > (RSSKD_Dir)\include
+* Menu > Project > Properties > Linker > General > Additional Library directories > (Edit...) > (RSSKD_Dir)\lib\x64
+
+## credits
 
 Martin Froehlich
 

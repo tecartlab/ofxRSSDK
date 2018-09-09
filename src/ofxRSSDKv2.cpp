@@ -2,6 +2,10 @@
 #include "ofxRSSDKv2.h"
 #include "ofMain.h"
 
+//sdjk https://github.com/IntelRealSense/librealsense
+//extrinsic data: https://github.com/IntelRealSense/librealsense/blob/5e73f7bb906a3cbec8ae43e888f182cc56c18692/examples/sensor-control/api_how_to.h#L209
+// projection: https://github.com/IntelRealSense/librealsense/wiki/Projection-in-RealSense-SDK-2.0
+// howtos: https://github.com/IntelRealSense/librealsense/wiki/API-How-To#get-depth-units
 
 namespace ofxRSSDK
 {

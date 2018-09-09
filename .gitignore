@@ -6,3 +6,5 @@ example-pointcloud-rgb/x64/
 *.opendb
 *.db
 *.TMP
+*.db-shm
+example-pointcloud-rgb/.vs/
