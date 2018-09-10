@@ -74,17 +74,29 @@ namespace ofxRSSDK
 		Q_RES=4
 	};
 
+	enum FilterPersistency
+	{
+		DISABLED			= 0,	//Persistency filter is not activated and no hole filling occurs.
+		VALID_IN_8_OF_8		= 1,	//Persistency activated if the pixel was valid in 8 out of the last 8 frames
+		VALID_IN_2_OF_LAST_3 = 2,	//Activated if the pixel was valid in two out of the last 3 frames
+		VALID_IN_2_OF_LAST_4 = 3,	//Activated if the pixel was valid in two out of the last 4 frames
+		VALID_IN_2_OF_8		= 4,	//Activated if the pixel was valid in two out of the last 8 frames
+		VALID_IN_1_OF_LAST_2 = 5,	//Activated if the pixel was valid in one of the last two frames
+		VALID_IN_1_OF_LAST_5 = 6,	//Activated if the pixel was valid in one out of the last 5 frames
+		VALID_IN_1_OF_LAST_8 = 7,	//Activated if the pixel was valid in one out of the last 8 frames
+		INDEFINITLY			= 8		//Persistency will be imposed regardless of the stored history(most aggressive filtering)
+	};
+
 	/**
 	Class to encapsulate a filter alongside its options
 	*/
 	class Disparity
 	{
-	protected:
-		Disparity();
 	public:
+		Disparity();
 		~Disparity();
-		rs2::process_interface& filter_in;           //The filter in use
-		rs2::process_interface& filter_out;           //The filter in use
+		rs2::process_interface *filter_in;           //The filter in use
+		rs2::process_interface *filter_out;           //The filter in use
 	};
 
 	class RSDevice
@@ -110,6 +122,15 @@ namespace ofxRSSDK
 
 		bool isRunning();
 
+		/**
+		Global setting to enable/disable postprocessing
+		This has to be set to true if any filter are meant to
+		do their job....
+		*/
+		public: void usePostProcessing(bool const & enable);
+		private: void usePostProcessing_p(bool & enable);
+		public: ofParameter<bool> param_usePostProcessing; //post processing parameter for use with ofxGUI
+
 		/** Uses the decimation filter
 		Effectively reduces the depth scene complexity. 
 		The filter run on kernel sizes [2x2] to [8x8] pixels. 
@@ -127,12 +148,19 @@ namespace ofxRSSDK
 		are recalculated to compensate for the resolution changes.
 		The filter also provides some hole filling capability, 
 		as the filter uses valid (non-zero) pixels only.		
-		
+		*/
+		public: void filterDecimation(bool const & enable);
+		private: void filterDecimation_p(bool & enable);
+		public: ofParameter<bool> param_filterDecimation; //Uses the decimation filter parameter for use with ofxGUI
+
+		/** setting of decimation filter
 		@param magnitude The decimation linear scale factor in Discrete steps in [2-8] range
 		@return void
 		*/
-		void useFilterDecimation(int magnitude);
-		
+		public: void filterDecimation_mag(int const & magnitude);
+		private: void filterDecimation_mag_p(int & magnitude);
+		public: ofParameter<int> param_filterDecimation_mag; //magnitudeof  decimation filter parameter for use with ofxGUI
+
 		/** Uses the SpatialEdgePreserve filter
 		*The implementation is based on paper (http://inf.ufrgs.br/%7Eeslgastal/DomainTransform/)
 		by Eduardo S. L. Gastal and Manuel M. Oliveira.
@@ -143,15 +171,38 @@ namespace ofxRSSDK
 		Linear-time compute, not affected by the choice of parameters.
 
 		The filter performs a series of 1D horizontal and vertical passes or iterations, 
-		to enhance the smoothness of the reconstructed data.		
-		
-		@param magnitude: The decimation linear scale factor, Discrete steps in [2-5] (2)
-		@param smoothAlpha: The Alpha factor, Range [0.25-1] (0.5)
-		@param smoothDelta: Step-size boundary, Discrete [1-50] (20)
-		@param holeFilling: hole-filling mode, 0-5] range mapped to [none,2,4,8,16,unlimited] pixels. (0)
-		@return void
+		to enhance the smoothness of the reconstructed data.	
+
+		NOTICE: disparity filter has be enabled to make this filter work!
 		*/
-		void useFilterSpatialEdgePreserve(int magnitude, float smoothAlpha, int smoothDelta, int holeFilling);
+		public: void filterSpatial(bool const & enable);
+		private: void filterSpatial_p(bool & enable);
+		public: ofParameter<bool> param_filterSpatial; //Uses the SpatialEdgePreserve filter parameter for use with ofxGUI
+
+		/** setting the SpatialEdgePreserve filter
+		@param magnitude: The decimation linear scale factor, Discrete steps in [2-5] (2)
+		*/
+		public: void filterSpatial_mag(int const & magnitude);
+		private: void filterSpatial_mag_p(int & magnitude);
+		public: ofParameter<int> param_filterSpatial_mag; //magnitude for SpatialEdgePreserve filter parameter for use with ofxGUI
+		/** setting the SpatialEdgePreserve filter
+		@param smoothAlpha: The Alpha factor, Range [0.25-1] (0.5)
+		*/
+		public:	void filterSpatial_smoothAlpha(float const & smoothAlpha);
+		private: void filterSpatial_smoothAlpha_p(float & smoothAlpha);
+		public: ofParameter<float> param_filterSpatial_smoothAlpha; //smoothAlpha for SpatialEdgePreserve filter parameter for use with ofxGUI
+		/** setting the SpatialEdgePreserve filter
+		@param smoothDelta: Step-size boundary, Discrete [1-50] (20)
+		*/
+		public: void filterSpatial_smoothDelta(int const & smoothDelta);
+		private: void filterSpatial_smoothDelta_p(int & smoothDelta);
+		public: ofParameter<int> param_filterSpatial_smoothDelta; //smoothDelta for SpatialEdgePreserve filter parameter for use with ofxGUI
+		/** setting the SpatialEdgePreserve filter
+		@param holeFilling: hole-filling mode, 0-5] range mapped to [none,2,4,8,16,unlimited] pixels. (0)
+		*/
+		public: void filterSpatial_holeFilling(int const & holeFilling);
+		private: void filterSpatial_holeFilling_p(int & holeFilling);
+		public: ofParameter<int> param_filterSpatial_holeFilling; //holeFilling for SpatialEdgePreserve filter parameter for use with ofxGUI
 
 		/**
 		The temporal filter is intended to improve the depth data persistency by 
@@ -165,9 +216,26 @@ namespace ofxRSSDK
 		introduce visible blurring/smearing artefacts, and therefore 
 		is best-suited for static scenes.
 
+		NOTICE: disparity filter has be enabled to make this filter work!
+		*/
+		public: void filterTemporal(bool const & enable);
+		private: void filterTemporal_p(bool & enable);
+		public: ofParameter<bool> param_filterTemporal; //Uses the temporal filter parameter for use with ofxGUI
+
+		/** Setting temporal filter
 		@param smoothAlpha: The Alpha factor in an exponential moving average | range [0-1] (0.4)
+		*/
+		public: void filterTemporal_smoothAlpha(float const & smoothAlpha);
+		private: void filterTemporal_smoothAlpha_p(float & smoothAlpha);
+		public: ofParameter<float> param_filterTemporal_smoothAlpha; //Setting smoothAlpha temporal filter parameter for use with ofxGUI
+		/** Setting temporal filter
 		@param smoothDelta: Step-size boundary | range [0-100] (20)
-		@param persitency:				| range [0-8](3)
+		*/
+		public: void filterTemporal_smoothDelta(int const & smoothDelta);
+		private: void filterTemporal_smoothDelta_p(int & smoothDelta);
+		public: ofParameter<int> param_filterTemporal_smoothDelta; //Setting smoothDelta temporal filter parameter for use with ofxGUI
+		/** Setting temporal filter
+		@param persistency:				| range [0-8](3)
 				A set of predefined rules (masks) that govern when missing pixels will be replace with the last valid value so that the data will remain persistent over time:
 				Disabled - Persistency filter is not activated and no hole filling occurs.
 				Valid in 8/8 - Persistency activated if the pixel was valid in 8 out of the last 8 frames
@@ -180,9 +248,16 @@ namespace ofxRSSDK
 				Persist Indefinitely - Persistency will be imposed regardless of the stored history (most aggressive filtering)
 
 		*/
-		void useFilterTemporal(float smoothAlpha, int smoothDelta, int persitency);
+		public: void filterTemporal_persistency(int const & persistency);
+		private: void filterTemporal_persistency_p(int & persistency);
+		public: ofParameter<int> param_filterTemporal_persistency; //Setting persistency temporal filter parameter for use with ofxGUI
 
-		void useFilterDisparity();
+		/**
+		This filter has to be enabled in order to have the temporal and spatial filter work
+		*/
+		public: void filterDisparities(bool const & enable);
+		private: void filterDisparities_p(bool & enable);
+		public: ofParameter<bool> param_filterDisparities; //Uses the disparity filters parameter for use with ofxGUI
 
 		const ofPixels&	getRgbFrame();
 		const ofPixels&	getDepthFrame();
@@ -233,8 +308,6 @@ namespace ofxRSSDK
 		void			updatePointCloud();
 		void			updatePointCloud(ofPixels colors);
 
-		bool isUsingFilterDec, isUsingFilterSpat, isUsingFilterTemp, isUsingFilterDisparity;
-
 	private:
 
 		bool			
@@ -246,6 +319,13 @@ namespace ofxRSSDK
 			mShouldGetDepthAsColor,
 			mShouldGetPointCloud,
 			mHasChangedResolution;
+
+		bool 
+			isUsingPostProcessing,
+			isUsingFilterDec, 
+			isUsingFilterSpat, 
+			isUsingFilterTemp, 
+			isUsingFilterDisparity;
 
 		AlignMode		mAlignMode;
 		CloudRes		mCloudRes;

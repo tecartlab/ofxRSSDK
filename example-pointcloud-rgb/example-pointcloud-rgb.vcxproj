@@ -93,14 +93,14 @@
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>..\src;$(RSSDK_DIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\src;$(RSSDK_DIR)\include;
+C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(RSSDK_DIR)\Lib\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -111,14 +111,14 @@
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>..\src;$(RSSDK_DIR)\include;C:\Program Files %28x86%29\Intel RealSense SDK 2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\src;$(RSSDK_DIR)\include;C:\Program Files (x86)\Intel RealSense SDK 2.0\include;
+C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Program Files %28x86%29\Intel RealSense SDK 2.0\lib\x64;$(RSSDK_DIR)\Lib\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -128,7 +128,8 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>..\src;$(RSSDK_DIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\src;$(RSSDK_DIR)\include;
+C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
@@ -138,7 +139,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(RSSDK_DIR)\Lib\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -148,7 +148,8 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>C:\Program Files %28x86%29\Intel RealSense SDK 2.0\include;..\src;$(RSSDK_DIR)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files (x86)\Intel RealSense SDK 2.0\include;..\src;$(RSSDK_DIR)\include;
+C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
@@ -158,16 +159,36 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(RSSDK_DIR)\Lib\Win32;C:\Program Files %28x86%29\Intel RealSense SDK 2.0\Lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\ofxGui\src\ofxBaseGui.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxButton.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxColorPicker.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxGuiGroup.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxInputField.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxLabel.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxPanel.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxSlider.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxSliderGroup.cpp" />
+    <ClCompile Include="..\..\ofxGui\src\ofxToggle.cpp" />
     <ClCompile Include="..\src\ofxRSSDKv2.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\ofApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\ofxGui\src\ofxBaseGui.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxButton.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxColorPicker.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxGui.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxGuiGroup.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxInputField.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxLabel.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxPanel.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxSlider.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxSliderGroup.h" />
+    <ClInclude Include="..\..\ofxGui\src\ofxToggle.h" />
     <ClInclude Include="..\src\ofxRSSDKv2.h" />
     <ClInclude Include="src\ofApp.h" />
   </ItemGroup>

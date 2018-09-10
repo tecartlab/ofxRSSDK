@@ -4,15 +4,33 @@
 void ofApp::setup()
 {
 	ofSetWindowShape(1280, 960);
+
 	mRSSDK = RSDevice::createUniquePtr();
+
+	gui.setup("PostProcessing"); // most of the time you don't need a name but don't forget to call setup
+	gui.add(mRSSDK->param_usePostProcessing);
+	gui.add(mRSSDK->param_filterDecimation);
+	gui.add(mRSSDK->param_filterDecimation_mag);
+	gui.add(mRSSDK->param_filterDisparities);
+	gui.add(mRSSDK->param_filterSpatial);
+	gui.add(mRSSDK->param_filterSpatial_smoothAlpha);
+	gui.add(mRSSDK->param_filterSpatial_smoothDelta);
+	gui.add(mRSSDK->param_filterSpatial_mag);
+	gui.add(mRSSDK->param_filterTemporal);
+	gui.add(mRSSDK->param_filterTemporal_smoothAlpha);
+	gui.add(mRSSDK->param_filterTemporal_smoothDelta);
+	gui.add(mRSSDK->param_filterTemporal_persistency);
 
 	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
 	mRSSDK->setPointCloudRange(100.0f,1000.0f);
 
-	mRSSDK->useFilterDecimation(8);
-	mRSSDK->useFilterSpatialEdgePreserve(2, 0.5, 20, 0);
-	mRSSDK->useFilterTemporal(0.4, 20, 3);
-	mRSSDK->useFilterDisparity();
+	/*
+	mRSSDK->filterDecimation(true);
+	mRSSDK->filterDecimation_mag(3);
+	mRSSDK->filterSpatial(true);
+	mRSSDK->filterTemporal(true);
+	mRSSDK->filterDisparities(true);
+	*/
 
 	mRSSDK->start();
 	setupCamera();
@@ -50,6 +68,7 @@ void ofApp::draw()
 
 	ofDrawBitmapString("fps: " + ofToString(ofGetFrameRate()), ofGetWidth() - 200, 10);
 
+	gui.draw();
 }
 
 

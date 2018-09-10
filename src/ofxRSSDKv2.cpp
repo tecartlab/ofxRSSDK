@@ -9,16 +9,20 @@
 
 namespace ofxRSSDK
 {	
-	Disparity::~Disparity(){}
-
-	Disparity::Disparity(){
-		rs2::disparity_transform depth_to_disp(true);
-		rs2::disparity_transform disp_to_depth(false);
-		filter_in = depth_to_disp;
-		filter_out = disp_to_depth;
+	Disparity::~Disparity()
+	{
+		delete filter_in;
+		delete filter_out;
 	}
 
-	RSDevice::~RSDevice(){}
+	Disparity::Disparity()
+	{
+		filter_in = new rs2::disparity_transform(true);
+		filter_out = new rs2::disparity_transform(false);
+	}
+
+	RSDevice::~RSDevice(){
+	}
 
 	RSDevice::RSDevice(){
 		mIsInit = false;
@@ -34,6 +38,45 @@ namespace ofxRSSDK
 		isUsingFilterSpat = false;
 		isUsingFilterTemp = false;
 		isUsingFilterDisparity = false;
+		isUsingPostProcessing = false;
+
+		// setting up ofParameters
+		param_usePostProcessing.set("use PostProcessing", false);
+		param_usePostProcessing.addListener(this, &RSDevice::usePostProcessing_p);
+
+		param_filterDecimation.set("use decimation filter", false);
+		param_filterDecimation.addListener(this, &RSDevice::filterDecimation_p);
+
+		param_filterDecimation_mag.set("decimation magnitude", 2, 2, 8);
+		param_filterDecimation_mag.addListener(this, &RSDevice::filterDecimation_mag_p);
+
+		param_filterSpatial.set("use spatial filter", false);
+		param_filterSpatial.addListener(this, &RSDevice::filterSpatial_p);
+
+		param_filterSpatial_mag.set("spatial magnitude", 2, 2, 5);
+		param_filterSpatial_mag.addListener(this, &RSDevice::filterSpatial_mag_p);
+
+		param_filterSpatial_smoothAlpha.set("spatial smoothAlpha", 0.5, 0.25, 1.0);
+		param_filterSpatial_smoothAlpha.addListener(this, &RSDevice::filterSpatial_smoothAlpha_p);
+
+		param_filterSpatial_smoothDelta.set("spatial smoothDelta", 20, 1, 50);
+		param_filterSpatial_smoothDelta.addListener(this, &RSDevice::filterSpatial_smoothDelta_p);
+
+		param_filterTemporal.set("use temporal Filter", false);
+		param_filterTemporal.addListener(this, &RSDevice::filterTemporal_p);
+
+		param_filterTemporal_smoothAlpha.set("temporal smoothAlpha", 0.4, 0.0, 1.0);
+		param_filterTemporal_smoothAlpha.addListener(this, &RSDevice::filterTemporal_smoothAlpha_p);
+
+		param_filterTemporal_smoothDelta.set("temporal smoothDelta", 20, 0, 100);
+		param_filterTemporal_smoothDelta.addListener(this, &RSDevice::filterTemporal_smoothDelta_p);
+
+		param_filterTemporal_persistency.set("temporal persistency", 3, 0, 8);
+		param_filterTemporal_persistency.addListener(this, &RSDevice::filterTemporal_persistency_p);
+
+		param_filterDisparities.set("use disparity filters", false);
+		param_filterDisparities.addListener(this, &RSDevice::filterDisparities_p);
+
 	}
 
 #pragma region Init
@@ -43,30 +86,6 @@ namespace ofxRSSDK
 	void RSDevice::setPointCloudRange(float pMin=100.0f, float pMax=1500.0f)
 	{
 		mPointCloudRange = ofVec2f(pMin,pMax);
-	}
-
-	void RSDevice::useFilterDecimation(int magnitude) {
-		rs2Filter_dec.set_option(RS2_OPTION_FILTER_MAGNITUDE, magnitude);
-		isUsingFilterDec = true;
-	}
-
-	void RSDevice::useFilterSpatialEdgePreserve(int magnitude, float smoothAlpha, int smoothDelta, int holeFilling) {
-		rs2Filter_spat.set_option(RS2_OPTION_FILTER_MAGNITUDE, magnitude);
-		rs2Filter_spat.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, smoothAlpha);
-		rs2Filter_spat.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA , smoothDelta);
-		rs2Filter_spat.set_option(RS2_OPTION_HOLES_FILL, holeFilling);
-		isUsingFilterSpat = true;
-	}
-
-	void RSDevice::useFilterTemporal(float smoothAlpha, int smoothDelta, int persitency) {
-		rs2Filter_temp.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, smoothAlpha);
-		rs2Filter_temp.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, smoothDelta);
-		rs2Filter_temp.set_option(RS2_OPTION_HOLES_FILL, persitency);
-		isUsingFilterTemp = true;
-	}
-
-	void RSDevice::useFilterDisparity() {
-		isUsingFilterDisparity = true;
 	}
 
 	bool RSDevice::start()
@@ -88,14 +107,6 @@ namespace ofxRSSDK
 		
 		rs2PipeLineProfile = rs2Pipe.start();
 		
-		// Declare filters
-		rs2::decimation_filter dec_filter;
-		rs2::spatial_filter spat_filter;
-
-		// Configure filter parameters
-		dec_filter.set_option(RS2_OPTION_FILTER_MAGNITUDE, 3.);
-		spat_filter.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, 0.55f);
-
 		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
 		auto color_sream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
 
@@ -129,20 +140,22 @@ namespace ofxRSSDK
 	
 			if (rs2Depth)
 			{
-				if (isUsingFilterDec) {
-					rs2Depth = rs2Filter_dec.process(rs2Depth);
-				}
-				if (isUsingFilterDisparity) {
-					rs2Depth = rs2Filter_disparity.filter_in.process(rs2Depth);
-				}
-				if (isUsingFilterSpat) {
-					rs2Depth = rs2Filter_spat.process(rs2Depth);
-				}
-				if (isUsingFilterTemp) {
-					rs2Depth = rs2Filter_temp.process(rs2Depth);
-				}
-				if (isUsingFilterDisparity) {
-					rs2Depth = rs2Filter_disparity.filter_out.process(rs2Depth);
+				if (isUsingPostProcessing) {
+					if (isUsingFilterDec) {
+						rs2Depth = rs2Filter_dec.process(rs2Depth);
+					}
+					if (isUsingFilterDisparity) {
+						rs2Depth = rs2Filter_disparity.filter_in->process(rs2Depth);
+					}
+					if (isUsingFilterSpat) {
+						rs2Depth = rs2Filter_spat.process(rs2Depth);
+					}
+					if (isUsingFilterTemp) {
+						rs2Depth = rs2Filter_temp.process(rs2Depth);
+					}
+					if (isUsingFilterDisparity) {
+						rs2Depth = rs2Filter_disparity.filter_out->process(rs2Depth);
+					}
 				}
 
 				// Use the colorizer to get an rgb image for the depth stream
@@ -486,5 +499,97 @@ namespace ofxRSSDK
 	{
 		return getColorCoordsFromDepthSpace(pCameraPoint.x, pCameraPoint.y, pCameraPoint.z);
 	}
+
+	void RSDevice::usePostProcessing_p(bool & enable) {
+		usePostProcessing(enable);
+	}
+	void RSDevice::usePostProcessing(bool const & enable) {
+		isUsingPostProcessing = enable;
+	}
+
+	void RSDevice::filterDecimation_p(bool & enable) {
+		filterDecimation(enable);
+	}
+	void RSDevice::filterDecimation(bool const & enable) {
+		isUsingFilterDec = enable;
+	}
+
+	void RSDevice::filterDecimation_mag_p(int & magnitude) {
+		filterDecimation_mag(magnitude);
+	}
+	void RSDevice::filterDecimation_mag(int const & magnitude) {
+		rs2Filter_dec.set_option(RS2_OPTION_FILTER_MAGNITUDE, magnitude);
+	}
+
+	void RSDevice::filterSpatial_p(bool & enable) {
+		filterSpatial(enable);
+	}
+	void RSDevice::filterSpatial(bool const & enable) {
+		isUsingFilterSpat = enable;
+	}
+
+	void RSDevice::filterSpatial_mag_p(int & magnitude) {
+		filterSpatial_mag(magnitude);
+	}
+	void RSDevice::filterSpatial_mag(int const & magnitude) {
+		rs2Filter_spat.set_option(RS2_OPTION_FILTER_MAGNITUDE, magnitude);
+	}
+
+	void RSDevice::filterSpatial_smoothAlpha_p(float & smoothAlpha) {
+		filterSpatial_smoothAlpha(smoothAlpha);
+	}
+	void RSDevice::filterSpatial_smoothAlpha(float const & smoothAlpha) {
+		rs2Filter_temp.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, smoothAlpha);
+	}
+
+	void RSDevice::filterSpatial_smoothDelta_p(int & smoothDelta) {
+		filterSpatial_smoothDelta(smoothDelta);
+	}
+	void RSDevice::filterSpatial_smoothDelta(int const & smoothDelta) {
+		rs2Filter_spat.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, smoothDelta);
+	}
+
+	void RSDevice::filterSpatial_holeFilling_p(int & holeFilling) {
+		filterSpatial_holeFilling(holeFilling);
+	}
+	void RSDevice::filterSpatial_holeFilling(int const & holeFilling) {
+		rs2Filter_spat.set_option(RS2_OPTION_HOLES_FILL, holeFilling);
+	}
+
+	void RSDevice::filterTemporal_p(bool & enable) {
+		filterTemporal(enable);
+	}
+	void RSDevice::filterTemporal(bool const & enable) {
+		isUsingFilterTemp = enable;
+	}
+
+	void RSDevice::filterTemporal_smoothAlpha_p(float & smoothAlpha) {
+		filterTemporal_smoothAlpha(smoothAlpha);
+	}
+	void RSDevice::filterTemporal_smoothAlpha(float const & smoothAlpha) {
+		rs2Filter_temp.set_option(RS2_OPTION_FILTER_SMOOTH_ALPHA, smoothAlpha);
+	}
+
+	void RSDevice::filterTemporal_smoothDelta_p(int & smoothDelta) {
+		filterTemporal_smoothDelta(smoothDelta);
+	}
+	void RSDevice::filterTemporal_smoothDelta(int const & smoothDelta) {
+		rs2Filter_temp.set_option(RS2_OPTION_FILTER_SMOOTH_DELTA, smoothDelta);
+	}
+
+	void RSDevice::filterTemporal_persistency_p(int & persitency) {
+		filterTemporal_persistency(persitency);
+	}
+	void RSDevice::filterTemporal_persistency(int const & persitency) {
+		rs2Filter_temp.set_option(RS2_OPTION_HOLES_FILL, persitency);
+	}
+
+	void RSDevice::filterDisparities_p(bool & enable) {
+		filterDisparities(enable);
+	}
+	void RSDevice::filterDisparities(bool const & enable) {
+		isUsingFilterDisparity = enable;
+	}
+
 }
 #pragma endregion

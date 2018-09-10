@@ -3,7 +3,7 @@
 #include <vector>
 #include "ofMain.h"
 #include "ofxRSSDKv2.h"
-#include <librealsense2/rs.hpp> // Include RealSense Cross Platform API 
+#include "ofxGui.h"
 
 using namespace std;
 using namespace ofxRSSDK;
@@ -34,6 +34,9 @@ private:
 	RSDevicePtr mRSSDK;	
 	ofMesh			mCloudMesh;
 	ofEasyCam		mCamera;
+
+	ofxPanel gui;
+
 };
 
 #endif
