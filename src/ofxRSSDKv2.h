@@ -108,17 +108,34 @@ namespace ofxRSSDK
 		static RSDevicePtr createUniquePtr() { return RSDevicePtr(new RSDevice()); }
 		static RSDeviceRef createSharedPtr() { return RSDeviceRef(new RSDevice()); }
 		
+		/**
+		Checks if at least one device is connected. If none is connected it will pop up
+		an alertbox until a device is connected...
+		*/
+		void checkConnectedDialog();
+
 		void enableAlignedImages(bool pState = true, AlignMode pMode = AlignMode::ALIGN_UVS_ONLY) { mShouldAlign = pState; mAlignMode = pMode; }
 		void enablePointCloud(CloudRes pCloudRes, float pMinDepth, float pMaxDepth) { mCloudRes=pCloudRes; mShouldGetPointCloud=true; mPointCloudRange = ofVec2f(pMinDepth,pMaxDepth);}
 		void setPointCloudRange(float pMin, float pMax);
 
-		bool start();
+		/**
+		Starts the device with these parameters
+		@param useDepth streaming depth
+		@param useVideo streaming video
+		@param useInfrared streaming left infrared stream
+		@param depthWidth - width of depth and infrared resolution
+		@param depthHeight - hight of depth and infrared resolution (424 x 240, 480 x 270, 640 x 360, 640 x 400, 640 x 480, [848 x 480], 1280 x 720, 1280 x 800)
+		@param videoWidth - width of video resolution
+		@param videoHeight - hight of depth resolution (320 x 180, 320 x 240, 424 x 240, 480 x 270, 640 x 360, 640 x 480, 848 x 480, 960 x 540, [1280 x 720], 1920 1080)
+		*/
+		bool start(bool useDepth = true, bool useVideo = true, bool useInfrared = true, int depthWidth = 848, int depthHeight = 480, int videoWidth = 1280, int videoHeight = 720);
 		bool update();
 		bool stop();
 
 		bool draw();
-		bool drawColor(const ofRectangle & rect);
-		bool drawDepth(const ofRectangle & rect);
+		bool drawVideoStream(const ofRectangle & rect); // draw the video stream
+		bool drawDepthStream(const ofRectangle & rect); // draw the false color depth stream
+		bool drawInfraLeftStream(const ofRectangle & rect); // draw the left infrared stream
 
 		bool isRunning();
 
@@ -266,8 +283,9 @@ namespace ofxRSSDK
 		private: void deviceLaser_p(float & magnitude);
 		public: ofParameter<float> param_deviceLaser; //device laser parameter for use with ofxGUI
 
-		const ofPixels&	getRgbFrame();
+		const ofPixels&	getVideoFrame(); 
 		const ofPixels&	getDepthFrame();
+		const ofPixels&	getInfraLeftFrame();
 
 		const ofPixels&	getColorMappedToDepthFrame();
 		const ofPixels&	getDepthMappedToColorFrame();
@@ -304,13 +322,13 @@ namespace ofxRSSDK
 		const glm::vec2		getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ);
 		const glm::vec2		getColorCoordsFromDepthSpace(ofPoint pCameraPoint);
 
-		const glm::vec2&	getDepthSize() { return mDepthSize;  }
-		const int		getDepthWidth() { return mDepthSize.x;  }
-		const int		getDepthHeight() { return mDepthSize.y; }
+		const glm::vec2&	getDepthSize() { return mDepthStreamSize;  }
+		const int		getDepthWidth() { return mDepthStreamSize.x;  }
+		const int		getDepthHeight() { return mDepthStreamSize.y; }
 
-		const glm::vec2&	getRgbSize() { return mRgbSize; }
-		const int		getRgbWidth() { return mRgbSize.x; }
-		const int		getRgbHeight() { return mRgbSize.y; }
+		const glm::vec2&	getRgbSize() { return mVideoStreamSize; }
+		const int		getRgbWidth() { return mVideoStreamSize.x; }
+		const int		getRgbHeight() { return mVideoStreamSize.y; }
 
 		void			updatePointCloud();
 		void			updatePointCloud(ofPixels colors);
@@ -320,8 +338,9 @@ namespace ofxRSSDK
 		bool			
 			mIsInit,
 			mIsRunning,
-			mHasRgb,
-			mHasDepth,
+			mStreamsVideo,
+			mStreamsDepth,
+			mStreamsIR,
 			mShouldAlign,
 			mShouldGetDepthAsColor,
 			mShouldGetPointCloud,
@@ -338,11 +357,14 @@ namespace ofxRSSDK
 		CloudRes		mCloudRes;
 
 		glm::vec2			mPointCloudRange;
-		glm::vec2			mDepthSize;
-		glm::vec2			mRgbSize;
 
-		ofPixels		mRgbFrame;
+		glm::vec2			mDepthStreamSize; // size of the depth stream after post processing (if applied)
+		glm::vec2			mVideoStreamSize;
+		glm::vec2			mInfraredStreamSize;
+
+		ofPixels		mVideoFrame;
 		ofPixels		mDepthFrame;
+		ofPixels		mInfraLeftFrame;
 
 		ofPixels		mColorToDepthFrame;
 		ofPixels		mDepthToColorFrame;

@@ -7,6 +7,9 @@ void ofApp::setup()
 
 	mRSSDK = RSDevice::createUniquePtr();
 
+	mRSSDK->checkConnectedDialog();
+	ofLogNotice("Device detected..");
+
 	gui_post.setup("PostProcessing", "postprocessingSetup", 0, 0); // most of the time you don't need a name but don't forget to call setup
 	gui_post.add(mRSSDK->param_usePostProcessing);
 	gui_post.add(mRSSDK->param_filterDecimation);
@@ -21,21 +24,17 @@ void ofApp::setup()
 	gui_post.add(mRSSDK->param_filterTemporal_smoothDelta);
 	gui_post.add(mRSSDK->param_filterTemporal_persistency);
 
-	gui_device.setup("Device", "deviceSetup", 200, 0);
-	gui_device.add(mRSSDK->param_deviceLaser);
+
 
 	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
 	mRSSDK->setPointCloudRange(100.0f,1000.0f);
 
-	/*
-	mRSSDK->filterDecimation(true);
-	mRSSDK->filterDecimation_mag(3);
-	mRSSDK->filterSpatial(true);
-	mRSSDK->filterTemporal(true);
-	mRSSDK->filterDisparities(true);
-	*/
+	mRSSDK->start(true, true, true);
 
-	mRSSDK->start();
+	// the device settings should be loaded/set after the start()
+	gui_device.setup("Device", "deviceSettings", 200, 0);
+	gui_device.add(mRSSDK->param_deviceLaser);
+
 	setupCamera();
 }
 
@@ -46,8 +45,8 @@ void ofApp::update()
 		// Generate the pointcloud with the default colors
 		//mRSSDK->updatePointCloud();
 		//Generate the pointcloud with specified ofPixels objects
-		mRSSDK->updatePointCloud(mRSSDK->getDepthFrame());
-		//mRSSDK->updatePointCloud(mRSSDK->getRgbFrame());
+		mRSSDK->updatePointCloud(mRSSDK->getInfraLeftFrame());
+		//mRSSDK->updatePointCloud(mRSSDK->getVideoFrame());
 	}
 }
 
@@ -57,8 +56,9 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
-	//mRSSDK->drawColor(ofRectangle(0, 0, ofGetWidth() / 2., ofGetHeight() / 2.));
-	//mRSSDK->drawDepth(ofRectangle(ofGetWidth() / 2., ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
+	//mRSSDK->drawVideoStream(ofRectangle(0, 0, ofGetWidth() / 2., ofGetHeight() / 2.));
+	//mRSSDK->drawDepthStream(ofRectangle(ofGetWidth() / 2., 0, ofGetWidth() / 2., ofGetHeight() / 2.));
+	//mRSSDK->drawInfraLeftStream(ofRectangle(0, ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
 
 	mCamera.begin(); 
 

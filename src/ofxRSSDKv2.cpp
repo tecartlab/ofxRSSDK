@@ -27,8 +27,8 @@ namespace ofxRSSDK
 	RSDevice::RSDevice(){
 		mIsInit = false;
 		mIsRunning = false;
-		mHasRgb = false;
-		mHasDepth = false;
+		mStreamsVideo = false;
+		mStreamsDepth = false;
 		mShouldAlign = false;
 		mShouldGetDepthAsColor = false;
 		mShouldGetPointCloud = false;
@@ -91,38 +91,42 @@ namespace ofxRSSDK
 		mPointCloudRange = ofVec2f(pMin,pMax);
 	}
 
-	bool RSDevice::start()
+	bool RSDevice::start(bool useDepth, bool useVideo, bool useInfrared, int depthWidth, int depthHeight, int videoWidth, int videoHeight)
 	{
 		mPointCloud.clear();
 		mPointCloud.setMode(OF_PRIMITIVE_POINTS);
 		mPointCloud.enableColors();
 
+		mVideoStreamSize.x = videoWidth;
+		mVideoStreamSize.y = videoHeight;
+
+		mInfraredStreamSize.x = depthWidth;
+		mInfraredStreamSize.y = depthHeight;
+
 		//Create a configuration for configuring the pipeline with a non default profile
-		//rs2::config cfg;
+		rs2::config cfg;
 
 		//Add desired streams to configuration
 		//cfg.enable_stream(RS2_STREAM_DEPTH, RS2_FORMAT_Z16); // Enable default depth
 											 // For the color stream, set format to RGBA
 											 // To allow blending of the color frame on top of the depth frame
 		//cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGB8);
-		//cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 720, RS2_FORMAT_Z16, 30);
-		//cfg.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_RGB8, 30);
-		
-		rs2PipeLineProfile = rs2Pipe.start();
+		if (useDepth) {
+			cfg.enable_stream(RS2_STREAM_DEPTH, depthWidth, depthHeight, RS2_FORMAT_Z16, 30);
+			mStreamsDepth = true;
+		}
+		if (useVideo) {
+			cfg.enable_stream(RS2_STREAM_COLOR, videoWidth, videoHeight, RS2_FORMAT_RGB8, 30);
+			mStreamsVideo = true;
+		}
+		if (useInfrared) {
+			cfg.enable_stream(RS2_STREAM_INFRARED, 1);
+			mStreamsIR = true;
+		}
+
+		rs2PipeLineProfile = rs2Pipe.start(cfg);
 		
 		rs2Device = rs2PipeLineProfile.get_device();
-
-		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
-		auto color_sream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
-
-		mRgbSize.x = color_sream.width();
-		mRgbSize.y = color_sream.height();
-
-		if (mShouldAlign)
-		{
-			mColorToDepthFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
-			mDepthToColorFrame.allocate(mRgbSize.x, mRgbSize.y, ofPixelFormat::OF_PIXELS_RGBA);
-		}
 
 		// Capture 30 frames to give autoexposure, etc. a chance to settle
 		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
@@ -141,42 +145,56 @@ namespace ofxRSSDK
 	{
 		if (rs2Pipe.poll_for_frames(&rs2FrameSet))
 		{
-			rs2Depth = rs2FrameSet.first(RS2_STREAM_DEPTH);
-	
-			if (rs2Depth)
-			{
-				if (isUsingPostProcessing) {
-					if (isUsingFilterDec) {
-						rs2Depth = rs2Filter_dec.process(rs2Depth);
+			if (mStreamsDepth) {
+				rs2Depth = rs2FrameSet.first(RS2_STREAM_DEPTH);
+
+				if (rs2Depth)
+				{
+					if (isUsingPostProcessing) {
+						if (isUsingFilterDec) {
+							rs2Depth = rs2Filter_dec.process(rs2Depth);
+						}
+						if (isUsingFilterDisparity) {
+							rs2Depth = rs2Filter_disparity.filter_in->process(rs2Depth);
+						}
+						if (isUsingFilterSpat) {
+							rs2Depth = rs2Filter_spat.process(rs2Depth);
+						}
+						if (isUsingFilterTemp) {
+							rs2Depth = rs2Filter_temp.process(rs2Depth);
+						}
+						if (isUsingFilterDisparity) {
+							rs2Depth = rs2Filter_disparity.filter_out->process(rs2Depth);
+						}
 					}
-					if (isUsingFilterDisparity) {
-						rs2Depth = rs2Filter_disparity.filter_in->process(rs2Depth);
-					}
-					if (isUsingFilterSpat) {
-						rs2Depth = rs2Filter_spat.process(rs2Depth);
-					}
-					if (isUsingFilterTemp) {
-						rs2Depth = rs2Filter_temp.process(rs2Depth);
-					}
-					if (isUsingFilterDisparity) {
-						rs2Depth = rs2Filter_disparity.filter_out->process(rs2Depth);
-					}
+
+					// Use the colorizer to get an rgb image for the depth stream
+					auto rs2DepthVideoFrame = rs2Color_map.colorize(rs2Depth);
+
+					// set the new resolutions for the depth stream
+					mDepthStreamSize.x = rs2DepthVideoFrame.get_width();
+					mDepthStreamSize.y = rs2DepthVideoFrame.get_height();
+
+					mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), mDepthStreamSize.x, mDepthStreamSize.y, 3);
 				}
-
-				// Use the colorizer to get an rgb image for the depth stream
-				auto rs2DepthVideoFrame = rs2Color_map.colorize(rs2Depth);
-
-				mDepthSize.x = rs2DepthVideoFrame.get_width();
-				mDepthSize.y = rs2DepthVideoFrame.get_height();
-
-				mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), mDepthSize.x, mDepthSize.y, 3);
 			}
 
-			auto rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_COLOR).as<rs2::video_frame>();
+			if (mStreamsVideo) {
+				auto rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_COLOR).as<rs2::video_frame>();
 
-			if (rs2VideoFrame)
-			{
-				mRgbFrame.setFromExternalPixels((unsigned char *)rs2VideoFrame.get_data(), rs2VideoFrame.get_width(), rs2VideoFrame.get_height(), 3);
+				if (rs2VideoFrame)
+				{
+					mVideoFrame.setFromExternalPixels((unsigned char *)rs2VideoFrame.get_data(), rs2VideoFrame.get_width(), rs2VideoFrame.get_height(), 3);
+				}
+			}
+
+			if (mStreamsIR) {
+				auto rs2IRFrame = rs2FrameSet.first(RS2_STREAM_INFRARED).as<rs2::video_frame>();
+
+				if (rs2IRFrame)
+				{
+					mInfraLeftFrame.setFromExternalPixels((unsigned char *)rs2IRFrame.get_data(), rs2IRFrame.get_width(), rs2IRFrame.get_height(), 1);
+				}
 			}
 			return true;
 		}
@@ -199,8 +217,8 @@ namespace ofxRSSDK
 #pragma region Update
 	void RSDevice::updatePointCloud()
 	{
-		if (mRgbFrame.size()) {
-			updatePointCloud(mRgbFrame);
+		if (mVideoFrame.size()) {
+			updatePointCloud(mVideoFrame);
 		}
 		else {
 			updatePointCloud(mDepthFrame);
@@ -212,8 +230,8 @@ namespace ofxRSSDK
 		// Generate the pointcloud and texture mapping	s
 		rs2Points = rs2PointCloud.calculate(rs2Depth);
 
-		int dWidth = (int)mDepthSize.x;
-		int dHeight = (int)mDepthSize.y;
+		int dWidth = (int)mDepthStreamSize.x;
+		int dHeight = (int)mDepthStreamSize.y;
 		int cWidth = colors.getWidth();
 		int cHeight = colors.getHeight();
 
@@ -284,18 +302,18 @@ namespace ofxRSSDK
 		return true;
 	}
 
-	bool RSDevice::drawColor(const ofRectangle & rect)
+	bool RSDevice::drawVideoStream(const ofRectangle & rect)
 	{
-		if (mRgbFrame.getWidth() > 0) {
+		if (mVideoFrame.getWidth() > 0) {
 			ofTexture texRGB;
-			texRGB.loadData(mRgbFrame);
+			texRGB.loadData(mVideoFrame);
 			texRGB.draw(rect.x, rect.y, rect.width, rect.height);
 			return true;
 		}
 		return false;
 	}
 
-	bool RSDevice::drawDepth(const ofRectangle & rect)
+	bool RSDevice::drawDepthStream(const ofRectangle & rect)
 	{
 		if (mDepthFrame.getWidth() > 0) {
 			ofTexture texRGB;
@@ -306,12 +324,28 @@ namespace ofxRSSDK
 		return false;
 	}
 
+	bool RSDevice::drawInfraLeftStream(const ofRectangle & rect)
+	{
+		if (mInfraLeftFrame.getWidth() > 0) {
+			ofTexture texRGB;
+			texRGB.loadData(mInfraLeftFrame);
+			texRGB.draw(rect.x, rect.y, rect.width, rect.height);
+			return true;
+		}
+		return false;
+	}
+
 #pragma endregion
 
 #pragma region Getters
-	const ofPixels& RSDevice::getRgbFrame()
+	const ofPixels& RSDevice::getVideoFrame()
 	{
-		return mRgbFrame;
+		return mVideoFrame;
+	}
+
+	const ofPixels& RSDevice::getInfraLeftFrame()
+	{
+		return mInfraLeftFrame;
 	}
 
 	const ofPixels& RSDevice::getDepthFrame()
@@ -498,6 +532,15 @@ namespace ofxRSSDK
 		}
 		**/
 		return glm::vec2();
+	}
+
+	void RSDevice::checkConnectedDialog() {
+		rs2::context ctx;
+		auto list = ctx.query_devices(); // Get a snapshot of currently connected devices
+		while (list.size() == 0) {
+			ofSystemAlertDialog("No Device found. Have you attached a RealSense D400 camera?");
+			list = ctx.query_devices();
+		}
 	}
 
 	const glm::vec2 RSDevice::getColorCoordsFromDepthSpace(ofPoint pCameraPoint)
