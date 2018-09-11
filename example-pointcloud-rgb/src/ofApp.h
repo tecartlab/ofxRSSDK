@@ -35,7 +35,8 @@ private:
 	ofMesh			mCloudMesh;
 	ofEasyCam		mCamera;
 
-	ofxPanel gui;
+	ofxPanel gui_post;
+	ofxPanel gui_device;
 
 };
 

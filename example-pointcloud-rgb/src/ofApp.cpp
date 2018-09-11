@@ -7,19 +7,22 @@ void ofApp::setup()
 
 	mRSSDK = RSDevice::createUniquePtr();
 
-	gui.setup("PostProcessing"); // most of the time you don't need a name but don't forget to call setup
-	gui.add(mRSSDK->param_usePostProcessing);
-	gui.add(mRSSDK->param_filterDecimation);
-	gui.add(mRSSDK->param_filterDecimation_mag);
-	gui.add(mRSSDK->param_filterDisparities);
-	gui.add(mRSSDK->param_filterSpatial);
-	gui.add(mRSSDK->param_filterSpatial_smoothAlpha);
-	gui.add(mRSSDK->param_filterSpatial_smoothDelta);
-	gui.add(mRSSDK->param_filterSpatial_mag);
-	gui.add(mRSSDK->param_filterTemporal);
-	gui.add(mRSSDK->param_filterTemporal_smoothAlpha);
-	gui.add(mRSSDK->param_filterTemporal_smoothDelta);
-	gui.add(mRSSDK->param_filterTemporal_persistency);
+	gui_post.setup("PostProcessing", "postprocessingSetup", 0, 0); // most of the time you don't need a name but don't forget to call setup
+	gui_post.add(mRSSDK->param_usePostProcessing);
+	gui_post.add(mRSSDK->param_filterDecimation);
+	gui_post.add(mRSSDK->param_filterDecimation_mag);
+	gui_post.add(mRSSDK->param_filterDisparities);
+	gui_post.add(mRSSDK->param_filterSpatial);
+	gui_post.add(mRSSDK->param_filterSpatial_smoothAlpha);
+	gui_post.add(mRSSDK->param_filterSpatial_smoothDelta);
+	gui_post.add(mRSSDK->param_filterSpatial_mag);
+	gui_post.add(mRSSDK->param_filterTemporal);
+	gui_post.add(mRSSDK->param_filterTemporal_smoothAlpha);
+	gui_post.add(mRSSDK->param_filterTemporal_smoothDelta);
+	gui_post.add(mRSSDK->param_filterTemporal_persistency);
+
+	gui_device.setup("Device", "deviceSetup", 200, 0);
+	gui_device.add(mRSSDK->param_deviceLaser);
 
 	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
 	mRSSDK->setPointCloudRange(100.0f,1000.0f);
@@ -68,7 +71,8 @@ void ofApp::draw()
 
 	ofDrawBitmapString("fps: " + ofToString(ofGetFrameRate()), ofGetWidth() - 200, 10);
 
-	gui.draw();
+	gui_post.draw();
+	gui_device.draw();
 }
 
 

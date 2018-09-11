@@ -259,6 +259,13 @@ namespace ofxRSSDK
 		private: void filterDisparities_p(bool & enable);
 		public: ofParameter<bool> param_filterDisparities; //Uses the disparity filters parameter for use with ofxGUI
 
+		/**
+		set the laser projektor power
+		*/
+		public: void deviceLaser(float const & magnitude);
+		private: void deviceLaser_p(float & magnitude);
+		public: ofParameter<float> param_deviceLaser; //device laser parameter for use with ofxGUI
+
 		const ofPixels&	getRgbFrame();
 		const ofPixels&	getDepthFrame();
 
@@ -353,6 +360,9 @@ namespace ofxRSSDK
 
 		// Profile
 		rs2::pipeline_profile rs2PipeLineProfile;
+
+		// Device
+		rs2::device rs2Device;
 
 		// current frame
 		rs2::frameset rs2FrameSet;

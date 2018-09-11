@@ -77,6 +77,9 @@ namespace ofxRSSDK
 		param_filterDisparities.set("use disparity filters", false);
 		param_filterDisparities.addListener(this, &RSDevice::filterDisparities_p);
 
+		param_deviceLaser.set("laser power", 0.5);
+		param_deviceLaser.addListener(this, &RSDevice::deviceLaser_p);
+
 	}
 
 #pragma region Init
@@ -107,6 +110,8 @@ namespace ofxRSSDK
 		
 		rs2PipeLineProfile = rs2Pipe.start();
 		
+		rs2Device = rs2PipeLineProfile.get_device();
+
 		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
 		auto color_sream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
 
@@ -589,6 +594,27 @@ namespace ofxRSSDK
 	}
 	void RSDevice::filterDisparities(bool const & enable) {
 		isUsingFilterDisparity = enable;
+	}
+
+	void RSDevice::deviceLaser(float const & magnitude) {
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_EMITTER_ENABLED) && magnitude > 0.0)
+		{
+			rs2DepthSensor.set_option(RS2_OPTION_EMITTER_ENABLED, 1.f); // Enable emitter
+			if (rs2DepthSensor.supports(RS2_OPTION_LASER_POWER))
+			{
+				// Query min and max values:
+				auto range = rs2DepthSensor.get_option_range(RS2_OPTION_LASER_POWER);
+				rs2DepthSensor.set_option(RS2_OPTION_LASER_POWER, range.max * magnitude); // Set max power
+			}
+		}
+		else {
+			rs2DepthSensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0.f); // Disable emitter
+		}
+	}
+	void RSDevice::deviceLaser_p(float & magnitude) {
+		deviceLaser(magnitude);
 	}
 
 }
