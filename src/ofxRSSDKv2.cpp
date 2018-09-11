@@ -159,7 +159,7 @@ namespace ofxRSSDK
 				}
 
 				// Use the colorizer to get an rgb image for the depth stream
-				auto rs2DepthVideoFrame = rs2Color_map(rs2Depth);
+				auto rs2DepthVideoFrame = rs2Color_map.colorize(rs2Depth);
 
 				mDepthSize.x = rs2DepthVideoFrame.get_width();
 				mDepthSize.y = rs2DepthVideoFrame.get_height();

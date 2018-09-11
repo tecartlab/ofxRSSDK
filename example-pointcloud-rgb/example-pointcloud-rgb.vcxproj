@@ -106,13 +106,12 @@ C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <Optimization>Disabled</Optimization>
-      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <Optimization>MinSpace</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>..\src;$(RSSDK_DIR)\include;C:\Program Files (x86)\Intel RealSense SDK 2.0\include;
-C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\ofxGui\src;..\src;$(RSSDK_DIR)\include;C:\Program Files (x86)\Intel RealSense SDK 2.0\include;C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
