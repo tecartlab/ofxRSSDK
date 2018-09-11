@@ -7,3 +7,6 @@ example-pointcloud-rgb/x64/
 *.TMP
 *.db-shm
 example-pointcloud-rgb/.vs/
+*.exp
+*.iobj
+*.ipdb
