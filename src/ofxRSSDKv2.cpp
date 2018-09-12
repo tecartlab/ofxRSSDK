@@ -253,6 +253,7 @@ namespace ofxRSSDK
 
 			// step through all the points inside the camera pointcloud
 			// and copy the data into the data containers
+			#pragma omp parallel for schedule(dynamic) //Using OpenMP to try to parallelise the loop
 			for (int dy = 0; dy < dHeight; dy += step)
 			{
 				ay = dy * dWidth;
@@ -288,29 +289,6 @@ namespace ofxRSSDK
 			cout << "elapsed time " << lastTime - firstTime  << endl;
 			*/
 			
-			/*
-
-			alignPointCloudToVideo();
-			
-			glm::vec2 col = glm::vec2(mVideoStreamSize.x / 2, mVideoStreamSize.y / 2);
-
-			rs2::depth_frame alignedDepthFrame = rs2Depth_aligned.as<rs2::depth_frame>();
-
-			float d_pt[3] = { 0 };
-			float d_px[2] = { col.x, col.y };
-
-			float depth = alignedDepthFrame.get_distance(d_px[0], d_px[1]);
-
-			rs2_deproject_pixel_to_point(d_pt, &rs2DepthIntrinsics, d_px, depth);
-
-			glm::vec3 d_vpt = glm::vec3(d_pt[0], d_pt[1], d_pt[2]);
-			cout << "color pixel x=" << col.x << ", y=" << col.y << endl;
-			cout << "depth pixel x=" << d_vpt.x << ", y=" << d_vpt.y << ", z =" << d_vpt.z << endl;
-			*/
-
-
-			rs2Depth_aligned = rs2Depth;
-
 			return true;
 		}
 		return false;

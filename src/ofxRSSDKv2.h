@@ -392,9 +392,6 @@ namespace ofxRSSDK
 		// current Depth frame
 		rs2::frame rs2Depth;
 
-		// alligned depth frame
-		rs2::frame rs2Depth_aligned;
-
 		struct rs2_intrinsics rs2DepthIntrinsics;
 		struct rs2_intrinsics rs2VideoIntrinsics;
 		struct rs2_intrinsics rsInfraLeftIntrinsics;
