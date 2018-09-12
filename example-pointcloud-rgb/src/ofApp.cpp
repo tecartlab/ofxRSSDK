@@ -45,14 +45,12 @@ void ofApp::update()
 	if (mRSSDK->update(ofxRSSDK::PointCloud::INFRALEFT)) {
 		// if a frame has been updated, the code continues in here,
 		// in case you need to do something special...
-		if (mRSSDK->alignPointCloudToVideo()) {
-			glm::vec2 col = glm::vec2(mRSSDK->getDepthWidth() / 2, mRSSDK->getDepthHeight() / 2);
-			glm::vec3 d_pt = mRSSDK->getAlignedSpacePoint(col);
-			cout << "color pixel x=" << col.x << ", y=" << col.y << endl;
-			cout << "depth pixel x=" << d_pt.x << ", y=" << d_pt.y << ", z =" << d_pt.z << endl;
-			float distance = mRSSDK->getAlignedSpaceDistance(col);
-			cout << "distance =" << distance << endl;
-		}
+		glm::vec2 col = glm::vec2(mRSSDK->getDepthWidth() / 2, mRSSDK->getDepthHeight() / 2);
+		glm::vec3 d_pt = mRSSDK->getSpacePointFromDepthFrameCoord(col);
+		cout << "color pixel x=" << col.x << ", y=" << col.y << endl;
+		cout << "depth pixel x=" << d_pt.x << ", y=" << d_pt.y << ", z =" << d_pt.z << endl;
+		float distance = mRSSDK->getSpaceDistanceFromDepthFrame(col);
+		cout << "distance =" << distance << endl;
 	}
 }
 

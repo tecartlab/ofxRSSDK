@@ -6,6 +6,7 @@
 //extrinsic data: https://github.com/IntelRealSense/librealsense/blob/5e73f7bb906a3cbec8ae43e888f182cc56c18692/examples/sensor-control/api_how_to.h#L209
 // projection: https://github.com/IntelRealSense/librealsense/wiki/Projection-in-RealSense-SDK-2.0
 // howtos: https://github.com/IntelRealSense/librealsense/wiki/API-How-To#get-depth-units
+// Aligning: https://github.com/IntelRealSense/librealsense/tree/master/examples/align
 
 namespace ofxRSSDK
 {	
@@ -123,7 +124,7 @@ namespace ofxRSSDK
 		rs2VideoIntrinsics = video_stream.get_intrinsics();
 
 		auto infra_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_INFRARED).as<rs2::video_stream_profile>();
-		rs2VideoIntrinsics = infra_stream.get_intrinsics();
+		rsInfraLeftIntrinsics = infra_stream.get_intrinsics();
 
 		// we are setting the depth units to one millimeter (default)
 		auto sensor = rs2Device.first<rs2::depth_sensor>();
@@ -315,22 +316,6 @@ namespace ofxRSSDK
 		return false;
 	}
 
-	bool RSDevice::alignPointCloudToVideo() {
-		// allign a whole depth frame to a corresponding video frame
-		rs2::align align(rs2_stream::RS2_STREAM_COLOR);
-		rs2::frameset aligned_frame = align.process(rs2FrameSet);
-		rs2Depth_aligned = aligned_frame.get_depth_frame();
-		return true;
-	}
-
-	bool RSDevice::alignPointCloudToInfraRed() {
-		// allign a whole depth frame to a corresponding video frame
-		rs2::align align(rs2_stream::RS2_STREAM_INFRARED);
-		rs2::frameset aligned_frame = align.process(rs2FrameSet);
-		rs2Depth_aligned = aligned_frame.get_depth_frame();
-		return true;
-	}
-
 	bool RSDevice::stop()
 	{
 		rs2Pipe.stop();
@@ -404,16 +389,6 @@ namespace ofxRSSDK
 		return mDepthFrame;
 	}
 
-	const ofPixels& RSDevice::getColorMappedToDepthFrame()
-	{
-		return mColorToDepthFrame;
-	}
-
-	const ofPixels& RSDevice::getDepthMappedToColorFrame()
-	{
-		return mDepthToColorFrame;
-	}
-
 	ofMesh RSDevice::getPointCloud()
 	{
 		return mPointCloud;
@@ -430,24 +405,30 @@ namespace ofxRSSDK
 //	"Coords" denotes texture space (U,V) coordinates
 //  "Frame" denotes a full Surface
 
-
-	glm::vec3 RSDevice::getAlignedSpacePoint(glm::vec2 imageCoordinate)
-	{
-		rs2::depth_frame alignedDepthFrame = rs2Depth_aligned.as<rs2::depth_frame>();
-
+	glm::vec3 RSDevice::getSpacePointFromDepthFrameCoord(glm::vec2 depthCoordinate) {
+		rs2::depth_frame dFrame = rs2Depth.as<rs2::depth_frame>();
+	
 		float d_pt[3] = { 0 };
-		float d_px[2] = { imageCoordinate.x, imageCoordinate.y };
+		float d_px[2] = { depthCoordinate.x, depthCoordinate.y };
 
-		float depth = alignedDepthFrame.get_distance(d_px[0], d_px[1]);
-		cout << "color pixel depth= " << depth << endl;
+		float depth = dFrame.get_distance(d_px[0], d_px[1]);
 
 		rs2_deproject_pixel_to_point(d_pt, &rs2DepthIntrinsics, d_px, depth);
 
 		return glm::vec3(d_pt[0], d_pt[1], d_pt[2]);
 	}
 
-	float RSDevice::getAlignedSpaceDistance(glm::vec2 imageCoordinate) {
-		return glm::length(getAlignedSpacePoint(imageCoordinate));
+	glm::vec3 RSDevice::getSpacePointFromVideoFrameCoord(glm::vec2 videoCoordinate) {
+		return getSpacePointFromDepthFrameCoord(glm::vec2(videoCoordinate.x / mVideoStreamSize.x * mDepthStreamSize.x, videoCoordinate.y / mVideoStreamSize.y * mDepthStreamSize.y));
+	}
+
+	glm::vec3 RSDevice::getSpacePointFromInfraLeftFrameCoord(glm::vec2 infraCoordinate) {
+		return getSpacePointFromDepthFrameCoord(glm::vec2(infraCoordinate.x / mInfraredStreamSize.x * mDepthStreamSize.x, infraCoordinate.y / mInfraredStreamSize.y * mDepthStreamSize.y));
+	}
+
+	float RSDevice::getSpaceDistanceFromDepthFrame(glm::vec2 depthCoordinate) {
+		rs2::depth_frame depthFrame = rs2Depth.as<rs2::depth_frame>();
+		return depthFrame.get_distance(depthCoordinate.x, depthCoordinate.y);
 	}
 
 	void RSDevice::checkConnectedDialog() {

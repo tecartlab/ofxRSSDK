@@ -305,9 +305,6 @@ namespace ofxRSSDK
 		const ofPixels&	getDepthFrame();
 		const ofPixels&	getInfraLeftFrame();
 
-		const ofPixels&	getColorMappedToDepthFrame();
-		const ofPixels&	getDepthMappedToColorFrame();
-
 		ofMesh getPointCloud();
 		vector<glm::vec3> & getPointCloudVertices();
 
@@ -317,36 +314,26 @@ namespace ofxRSSDK
 		//	"Coords" denotes texture space (U,V) coordinates
 		//  "Frame" denotes a full Surface
 
-		/**
-		This allignes the Video image with the depth cloud.
-
-		If you want to get Aligned Space points you need to call this method first,
-		once each time after an update().
-		*/
-		bool alignPointCloudToVideo();
-		/**
-		This allignes the Video image with the depth cloud.
-
-		If you want to get Aligned Space points you need to call this method fist, 
-		once each time after an update().
-		*/
-		bool alignPointCloudToInfraRed();
 
 		/**
-		Get a local space point from an aligned image point.
-		
-		if you want to use video or infrared pixel coordinates to gather the space
-		coordinate, call first one of the alignePointCloudToxxxx() function.
+		Get a local space point of the specified depth frame coordinate
 		*/
-		glm::vec3 getAlignedSpacePoint(glm::vec2 imageCoordinate);
+		glm::vec3 getSpacePointFromDepthFrameCoord(glm::vec2 depthCoordinate);
 
 		/**
-		Get the distance of an aligned image point.
-
-		if you want to use video or infrared pixel coordinates to gather the space
-		coordinate, call first one of the alignePointCloudToxxxx() function.
+		Get a local space point of the specified video frame coordinate
 		*/
-		float getAlignedSpaceDistance(glm::vec2 imageCoordinate);
+		glm::vec3 getSpacePointFromVideoFrameCoord(glm::vec2 videoCoordinate);
+
+		/**
+		Get a local space point of the specified infrared frame coordinate
+		*/
+		glm::vec3 getSpacePointFromInfraLeftFrameCoord(glm::vec2 infraCoordinate);
+
+		/**
+		Get the distance from the device to the specified depth coordinate
+		*/
+		float getSpaceDistanceFromDepthFrame(glm::vec2 depthCoordinate);
 
 		const glm::vec2&	getDepthSize() { return mDepthStreamSize;  }
 		const int			getDepthWidth() { return mDepthStreamSize.x;  }
@@ -381,9 +368,6 @@ namespace ofxRSSDK
 		ofPixels		mVideoFrame;
 		ofPixels		mDepthFrame;
 		ofPixels		mInfraLeftFrame;
-
-		ofPixels		mColorToDepthFrame;
-		ofPixels		mDepthToColorFrame;
 
 		// Declare depth colorizer for pretty visualization of depth data
 		rs2::colorizer rs2Color_map;
