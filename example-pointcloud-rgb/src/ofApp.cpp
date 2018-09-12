@@ -29,7 +29,7 @@ void ofApp::setup()
 	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
 	mRSSDK->setPointCloudRange(100.0f,1000.0f);
 
-	mRSSDK->start(true, true, true);
+	mRSSDK->start();
 
 	// the device settings should be loaded/set after the start()
 	gui_device.setup("Device", "deviceSettings", 200, 0);
@@ -42,12 +42,9 @@ void ofApp::setup()
 //--------------------------------------------------------------
 void ofApp::update()
 {
-	if (mRSSDK->update()) {
-		// Generate the pointcloud with the default colors
-		//mRSSDK->updatePointCloud();
-		//Generate the pointcloud with specified ofPixels objects
-		mRSSDK->updatePointCloud(mRSSDK->getInfraLeftFrame());
-		//mRSSDK->updatePointCloud(mRSSDK->getVideoFrame());
+	if (mRSSDK->update(ofxRSSDK::PointCloud::INFRALEFT)) {
+		// if a frame has been updated, the code continues in here,
+		// in case you need to do something special...
 	}
 }
 

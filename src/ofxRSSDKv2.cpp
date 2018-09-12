@@ -44,13 +44,13 @@ namespace ofxRSSDK
 		param_usePostProcessing.set("use PostProcessing", false);
 		param_usePostProcessing.addListener(this, &RSDevice::usePostProcessing_p);
 
-		param_filterDecimation.set("use decimation filter", true);
+		param_filterDecimation.set("use decimation filter", false);
 		param_filterDecimation.addListener(this, &RSDevice::filterDecimation_p);
 
 		param_filterDecimation_mag.set("decimation magnitude", 2, 2, 8);
 		param_filterDecimation_mag.addListener(this, &RSDevice::filterDecimation_mag_p);
 
-		param_filterSpatial.set("use spatial filter", true);
+		param_filterSpatial.set("use spatial filter", false);
 		param_filterSpatial.addListener(this, &RSDevice::filterSpatial_p);
 
 		param_filterSpatial_mag.set("spatial magnitude", 2, 2, 5);
@@ -62,7 +62,7 @@ namespace ofxRSSDK
 		param_filterSpatial_smoothDelta.set("spatial smoothDelta", 20, 1, 50);
 		param_filterSpatial_smoothDelta.addListener(this, &RSDevice::filterSpatial_smoothDelta_p);
 
-		param_filterTemporal.set("use temporal Filter", true);
+		param_filterTemporal.set("use temporal Filter", false);
 		param_filterTemporal.addListener(this, &RSDevice::filterTemporal_p);
 
 		param_filterTemporal_smoothAlpha.set("temporal smoothAlpha", 0.4, 0.0, 1.0);
@@ -93,7 +93,7 @@ namespace ofxRSSDK
 		mPointCloudRange = ofVec2f(pMin,pMax);
 	}
 
-	bool RSDevice::start(bool useDepth, bool useVideo, bool useInfrared, int depthWidth, int depthHeight, int videoWidth, int videoHeight)
+	bool RSDevice::start(int depthWidth, int depthHeight, int videoWidth, int videoHeight)
 	{
 		mPointCloud.clear();
 		mPointCloud.setMode(OF_PRIMITIVE_POINTS);
@@ -113,22 +113,17 @@ namespace ofxRSSDK
 											 // For the color stream, set format to RGBA
 											 // To allow blending of the color frame on top of the depth frame
 		//cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGB8);
-		if (useDepth) {
-			cfg.enable_stream(RS2_STREAM_DEPTH, depthWidth, depthHeight, RS2_FORMAT_Z16, 30);
-			mStreamsDepth = true;
-		}
-		if (useVideo) {
-			cfg.enable_stream(RS2_STREAM_COLOR, videoWidth, videoHeight, RS2_FORMAT_RGB8, 30);
-			mStreamsVideo = true;
-		}
-		if (useInfrared) {
-			cfg.enable_stream(RS2_STREAM_INFRARED, 1);
-			mStreamsIR = true;
-		}
+		cfg.enable_stream(RS2_STREAM_DEPTH, depthWidth, depthHeight, RS2_FORMAT_Z16, 30);
+		cfg.enable_stream(RS2_STREAM_COLOR, videoWidth, videoHeight, RS2_FORMAT_RGB8, 30);
+		cfg.enable_stream(RS2_STREAM_INFRARED, 1);
 
 		rs2PipeLineProfile = rs2Pipe.start(cfg);
 		
 		rs2Device = rs2PipeLineProfile.get_device();
+
+		// we are setting the depth units to one millimeter (default)
+		auto sensor = rs2Device.first<rs2::depth_sensor>();
+		sensor.set_option(RS2_OPTION_DEPTH_UNITS, 0.001);
 
 		// Capture 30 frames to give autoexposure, etc. a chance to settle
 		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
@@ -143,64 +138,150 @@ namespace ofxRSSDK
 		return mIsRunning;
 	}
 
-	bool RSDevice::update()
+	bool RSDevice::update(int color)
 	{
+		// polling for the next frame
 		if (rs2Pipe.poll_for_frames(&rs2FrameSet))
 		{
-			if (mStreamsDepth) {
-				rs2Depth = rs2FrameSet.first(RS2_STREAM_DEPTH);
+			// if there is a frame...
 
-				if (rs2Depth)
-				{
-					if (isUsingPostProcessing) {
-						if (isUsingFilterDec) {
-							rs2Depth = rs2Filter_dec.process(rs2Depth);
-						}
-						if (isUsingFilterDisparity) {
-							rs2Depth = rs2Filter_disparity.filter_in->process(rs2Depth);
-						}
-						if (isUsingFilterSpat) {
-							rs2Depth = rs2Filter_spat.process(rs2Depth);
-						}
-						if (isUsingFilterTemp) {
-							rs2Depth = rs2Filter_temp.process(rs2Depth);
-						}
-						if (isUsingFilterDisparity) {
-							rs2Depth = rs2Filter_disparity.filter_out->process(rs2Depth);
-						}
-					}
+			// get the depth data from the frame
+			rs2Depth = rs2FrameSet.first(RS2_STREAM_DEPTH);
 
-					// Use the colorizer to get an rgb image for the depth stream
-					auto rs2DepthVideoFrame = rs2Color_map.colorize(rs2Depth);
-
-					// set the new resolutions for the depth stream
-					mDepthStreamSize.x = rs2DepthVideoFrame.get_width();
-					mDepthStreamSize.y = rs2DepthVideoFrame.get_height();
-
-					mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), mDepthStreamSize.x, mDepthStreamSize.y, 3);
+			// apply postprocessing filters on the depth data
+			if (isUsingPostProcessing) {
+				if (isUsingFilterDec) {
+					rs2Depth = rs2Filter_dec.process(rs2Depth);
+				}
+				if (isUsingFilterDisparity) {
+					rs2Depth = rs2Filter_disparity.filter_in->process(rs2Depth);
+				}
+				if (isUsingFilterSpat) {
+					rs2Depth = rs2Filter_spat.process(rs2Depth);
+				}
+				if (isUsingFilterTemp) {
+					rs2Depth = rs2Filter_temp.process(rs2Depth);
+				}
+				if (isUsingFilterDisparity) {
+					rs2Depth = rs2Filter_disparity.filter_out->process(rs2Depth);
 				}
 			}
 
-			if (mStreamsVideo) {
-				auto rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_COLOR).as<rs2::video_frame>();
+			// Use the colorizer to get an rgb image for the depth stream
+			auto rs2DepthVideoFrame = rs2Color_map.colorize(rs2Depth);
 
-				if (rs2VideoFrame)
+			// set the new resolutions for the depth stream
+			mDepthStreamSize.x = rs2DepthVideoFrame.get_width();
+			mDepthStreamSize.y = rs2DepthVideoFrame.get_height();
+
+			// populate the depth video frame
+			mDepthFrame.setFromExternalPixels((unsigned char *)rs2DepthVideoFrame.get_data(), mDepthStreamSize.x, mDepthStreamSize.y, 3);
+
+			// get the video stream from the camera frame
+			auto rs2VideoFrame = rs2FrameSet.first(RS2_STREAM_COLOR).as<rs2::video_frame>();
+			// populate the video frame
+			mVideoFrame.setFromExternalPixels((unsigned char *)rs2VideoFrame.get_data(), rs2VideoFrame.get_width(), rs2VideoFrame.get_height(), 3);
+
+			// get the infrared stream from the camera frame
+			auto rs2IRFrame = rs2FrameSet.first(RS2_STREAM_INFRARED).as<rs2::video_frame>();
+			// populate the infrared frame
+			mInfraLeftFrame.setFromExternalPixels((unsigned char *)rs2IRFrame.get_data(), rs2IRFrame.get_width(), rs2IRFrame.get_height(), 1);
+
+			// Generate the pointcloud and texture mapping	s
+			rs2Points = rs2PointCloud.calculate(rs2Depth);
+
+			ofPixels colors;
+
+			// map the depth point cloud according to the chosen frame stream
+			switch (color) {
+			case 0:
+				rs2PointCloud.map_to(rs2DepthVideoFrame);
+				colors = mDepthFrame;
+				break;
+			case 1:
+				rs2PointCloud.map_to(rs2VideoFrame);
+				colors = mVideoFrame;
+				break;
+			case 2:
+				rs2PointCloud.map_to(rs2IRFrame);
+				colors = mInfraLeftFrame;
+				break;
+			}
+
+			int dWidth = (int)mDepthStreamSize.x;
+			int dHeight = (int)mDepthStreamSize.y;
+			int cWidth = colors.getWidth();
+			int cHeight = colors.getHeight();
+
+			int length = dHeight * dWidth;
+
+			// if the point cloud has changed its size, rescale the data container
+			if (length != mPointCloud.getVertices().size()) {
+				mPointCloud.clear();
+				for (int i = 0; i < length; i++) {
+					mPointCloud.addVertex(glm::vec3(0, 0, 0));
+					mPointCloud.addTexCoord(glm::vec2(0, 0));
+					mPointCloud.addColor(ofDefaultColorType());
+				}
+				cout << "created new depth point cloud w: " << dWidth << " h: " << dHeight << endl;
+				//cout << "created new mesh: " << dHeight << "/" << dWidth << endl;
+			}
+
+			//float firstTime = ofGetElapsedTimef();  
+
+			// get the point cloud data
+			auto vertices = rs2Points.get_vertices();              // get vertices
+			auto texCoords = rs2Points.get_texture_coordinates();  // get vertices
+
+			// get the individual pointers to the data container
+			glm::vec3* pVertices		= mPointCloud.getVerticesPointer();
+			glm::vec2* pTexCoords		= mPointCloud.getTexCoordsPointer();
+			ofDefaultColorType* pColors = mPointCloud.getColorsPointer();
+
+			int i_dOrig, i_dTarget;
+			float relHeight = (float)cHeight / (float)dHeight;
+			float relWidth = (float)cWidth / (float)dWidth;
+			int step = 1;
+			int cx, cy, bx, by, ay;
+
+			// step through all the points inside the camera pointcloud
+			// and copy the data into the data containers
+			for (int dy = 0; dy < dHeight; dy += step)
+			{
+				ay = dy * dWidth;
+				by = ay / (step * step);
+				cy = dy * relHeight;
+				auto pxlLine = colors.getLine(cy);
+
+				for (int dx = 0; dx < dWidth; dx += step)
 				{
-					mVideoFrame.setFromExternalPixels((unsigned char *)rs2VideoFrame.get_data(), rs2VideoFrame.get_width(), rs2VideoFrame.get_height(), 3);
+					cx = dx * relHeight;
+					auto pxl = pxlLine.getPixel(cx);
+
+					i_dOrig = ay + dx;
+
+					i_dTarget = by + dx / step;
+	
+					pVertices[i_dTarget].x = vertices[i_dOrig].x;
+					pVertices[i_dTarget].y = vertices[i_dOrig].y;
+					pVertices[i_dTarget].z = vertices[i_dOrig].z;
+
+					pTexCoords[i_dTarget].x = texCoords[i_dOrig].u;
+					pTexCoords[i_dTarget].y = texCoords[i_dOrig].v;
+
+					pColors[i_dTarget].r = pxl[0] / 255.;
+					pColors[i_dTarget].g = pxl[1] / 255.;
+					pColors[i_dTarget].b = pxl[2] / 255.;
 				}
 			}
 
-			if (mStreamsIR) {
-				auto rs2IRFrame = rs2FrameSet.first(RS2_STREAM_INFRARED).as<rs2::video_frame>();
-
-				if (rs2IRFrame)
-				{
-					mInfraLeftFrame.setFromExternalPixels((unsigned char *)rs2IRFrame.get_data(), rs2IRFrame.get_width(), rs2IRFrame.get_height(), 1);
-				}
-			}
+			/*
+			float lastTime = ofGetElapsedTimef();
+			cout << "final depth point cloud size: " << mPointCloud.getVertices().size() << endl;
+			cout << "elapsed time " << lastTime - firstTime  << endl;
+			*/
 			return true;
 		}
-	
 		return false;
 	}
 
@@ -217,84 +298,6 @@ namespace ofxRSSDK
 #pragma endregion
 
 #pragma region Update
-	void RSDevice::updatePointCloud()
-	{
-		if (mVideoFrame.size()) {
-			updatePointCloud(mVideoFrame);
-		}
-		else {
-			updatePointCloud(mDepthFrame);
-		}
-	}
-
-	void RSDevice::updatePointCloud(ofPixels colors)
-	{
-		// Generate the pointcloud and texture mapping	s
-		rs2Points = rs2PointCloud.calculate(rs2Depth);
-
-		int dWidth = (int)mDepthStreamSize.x;
-		int dHeight = (int)mDepthStreamSize.y;
-		int cWidth = colors.getWidth();
-		int cHeight = colors.getHeight();
-
-		int step = (int)mCloudRes;
-
-		int length = dHeight * dWidth / (step * step);
-
-		if (length != mPointCloud.getVertices().size()) {
-			mPointCloud.clear();
-			for (int i = 0; i < length; i++) {
-				mPointCloud.addVertex(glm::vec3(0, 0, 0));
-				mPointCloud.addColor(ofDefaultColorType());
-			}
-			cout << "created new depth point cloud w: " << dWidth << " h: " << dHeight << endl;
-			//cout << "created new mesh: " << dHeight << "/" << dWidth << endl;
-		}
-		
-		//float firstTime = ofGetElapsedTimef();  
-
-		auto vertices = rs2Points.get_vertices();              // get vertices
-
-		glm::vec3* pVertices = mPointCloud.getVerticesPointer();
-		ofDefaultColorType* pColors = mPointCloud.getColorsPointer();
-
-		int i_dOrig, i_dTarget;
-		float relHeight = (float)cHeight / (float)dHeight;
-		float relWidth = (float)cWidth / (float)dWidth;
-
-		//cout << "relHeight: " << relHeight << " relWidth: " << relWidth << endl;
-
-		for (int dy = 0; dy < dHeight; dy+=step)
-		{
-			int cy = dy * relHeight;
-			auto pxlLine = colors.getLine(cy);
-
-			for (int dx = 0; dx < dWidth; dx+=step)
-			{
-				int cx = dx * relHeight;
-				auto pxl = pxlLine.getPixel(cx);
-
-				i_dOrig = dy * dWidth + dx;
-
-				i_dTarget = dy * dWidth / (step * step) + dx / step;
-
-				pVertices[i_dTarget].x = vertices[i_dOrig].x;
-				pVertices[i_dTarget].y = vertices[i_dOrig].y;
-				pVertices[i_dTarget].z = vertices[i_dOrig].z;
-				
-				pColors[i_dTarget].r = pxl[0] / 255.;
-				pColors[i_dTarget].g = pxl[1] / 255.;
-				pColors[i_dTarget].b = pxl[2] / 255.;
-			}
-		}
-
-		/*
-		float lastTime = ofGetElapsedTimef();
-		cout << "final depth point cloud size: " << mPointCloud.getVertices().size() << endl;
-		cout << "elapsed time " << lastTime - firstTime  << endl;
-		*/
-
-	}
 
 	bool RSDevice::draw()
 	{

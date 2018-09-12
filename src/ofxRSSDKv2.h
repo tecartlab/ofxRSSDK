@@ -74,6 +74,13 @@ namespace ofxRSSDK
 		Q_RES=4
 	};
 
+	enum PointCloud
+	{
+		DEPTH = 0,
+		VIDEO = 1,
+		INFRALEFT = 2
+	};
+
 	enum FilterPersistency
 	{
 		DISABLED			= 0,	//Persistency filter is not activated and no hole filling occurs.
@@ -128,8 +135,13 @@ namespace ofxRSSDK
 		@param videoWidth - width of video resolution
 		@param videoHeight - hight of depth resolution (320 x 180, 320 x 240, 424 x 240, 480 x 270, 640 x 360, 640 x 480, 848 x 480, 960 x 540, [1280 x 720], 1920 1080)
 		*/
-		bool start(bool useDepth = true, bool useVideo = true, bool useInfrared = true, int depthWidth = 848, int depthHeight = 480, int videoWidth = 1280, int videoHeight = 720);
-		bool update();
+		bool start(int depthWidth = 848, int depthHeight = 480, int videoWidth = 1280, int videoHeight = 720);
+		/**
+		update point cloud. 
+		@param color choose texture to update with
+		*/
+		bool update(int color); 
+
 		bool stop();
 
 		bool draw();
@@ -336,9 +348,6 @@ namespace ofxRSSDK
 		const glm::vec2&	getRgbSize() { return mVideoStreamSize; }
 		const int		getRgbWidth() { return mVideoStreamSize.x; }
 		const int		getRgbHeight() { return mVideoStreamSize.y; }
-
-		void			updatePointCloud();
-		void			updatePointCloud(ofPixels colors);
 
 	private:
 
