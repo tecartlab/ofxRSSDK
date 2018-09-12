@@ -27,11 +27,6 @@ namespace ofxRSSDK
 	RSDevice::RSDevice(){
 		mIsInit = false;
 		mIsRunning = false;
-		mStreamsVideo = false;
-		mStreamsDepth = false;
-		mShouldAlign = false;
-		mShouldGetDepthAsColor = false;
-		mShouldGetPointCloud = false;
 		mPointCloudRange = ofVec2f(0,3000);
 		mCloudRes = CloudRes::FULL_RES;
 		isUsingFilterDec = false;
@@ -129,7 +124,6 @@ namespace ofxRSSDK
 		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
 
 		mIsRunning = true;
-		mHasChangedResolution = true;
 
 		return true;
 	}
@@ -379,32 +373,32 @@ namespace ofxRSSDK
 	}
 
 	//Nomenclature Notes:
-	//	"Space" denotes a 3d coordinate
-	//	"Image" denotes an image space point ((0, width), (0,height), (image depth))
-	//	"Coords" denotes texture space (U,V) coordinates
-	//  "Frame" denotes a full Surface
+//	"Space" denotes a 3d coordinate
+//	"Image" denotes an image space point ((0, width), (0,height), (image depth))
+//	"Coords" denotes texture space (U,V) coordinates
+//  "Frame" denotes a full Surface
 
-	//get a camera space point from a depth image point
-	const ofPoint RSDevice::getDepthSpacePoint(float pImageX, float pImageY, float pImageZ)
+	/*
+	glm::vec3 RSDevice::getDepthSpacePoint(const rs2::depth_frame& frame, glm::vec2 u)
 	{
-		/**
-		if (mCoordinateMapper)
-		{
-			PXCPoint3DF32 cPoint;
-			cPoint.x = pImageX;
-			cPoint.y = pImageY;
-			cPoint.z = pImageZ;
 
-			mInPoints3D.clear();
-			mInPoints3D.push_back(cPoint);
-			mOutPoints3D.clear();
-			mOutPoints3D.resize(2);
-			mCoordinateMapper->ProjectDepthToCamera(1, &mInPoints3D[0], &mOutPoints3D[0]);
-			return ofPoint(mOutPoints3D[0].x, mOutPoints3D[0].y, mOutPoints3D[0].z);
-		}
-		**/
-		return ofPoint(0);
+		float upixel[2]; // From pixel
+		float upoint[3]; // From point (in 3D)
+
+		// Copy pixels into the arrays (to match rsutil signatures)
+		upixel[0] = u.x;
+		upixel[1] = u.y;
+
+		// Query the frame for distance
+		auto udist = .get_distance(upixel[0], upixel[1]);
+
+		// Deproject from pixel to point in 3D
+		rs2_intrinsics intr = frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics(); // Calibration data
+		rs2_deproject_pixel_to_point(upoint, &intr, upixel, udist);
+
+		return ofPoint(upoint[0], upoint[1], upoint[2]);
 	}
+	*/
 
 	const ofPoint RSDevice::getDepthSpacePoint(int pImageX, int pImageY, uint16_t pImageZ)
 	{

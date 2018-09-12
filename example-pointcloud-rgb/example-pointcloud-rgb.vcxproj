@@ -173,6 +173,7 @@ C:\Users\maybites\Arbeiten\02_code\openFrameworks\of_v0.10.0\addons\ofxGui\src;%
     <ClCompile Include="..\..\ofxGui\src\ofxSliderGroup.cpp" />
     <ClCompile Include="..\..\ofxGui\src\ofxToggle.cpp" />
     <ClCompile Include="..\src\ofxRSSDKv2.cpp" />
+    <ClCompile Include="Helper.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\ofApp.cpp" />
   </ItemGroup>

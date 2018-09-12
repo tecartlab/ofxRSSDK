@@ -8,6 +8,7 @@
 #include <memory>
 #include "ofMain.h"
 #include <librealsense2/rs.hpp> // Include RealSense Cross Platform API 
+#include <librealsense2/rsutil.h> // Include RealSense Cross Platform API 
 // configure in windows -> project properties -> C/C++ -> General -> additional include directories -> SDK include folder
 
 #include <fstream>              // File IO
@@ -121,8 +122,6 @@ namespace ofxRSSDK
 		*/
 		void checkConnectedDialog();
 
-		void enableAlignedImages(bool pState = true, AlignMode pMode = AlignMode::ALIGN_UVS_ONLY) { mShouldAlign = pState; mAlignMode = pMode; }
-		void enablePointCloud(CloudRes pCloudRes, float pMinDepth, float pMaxDepth) { mCloudRes=pCloudRes; mShouldGetPointCloud=true; mPointCloudRange = ofVec2f(pMinDepth,pMaxDepth);}
 		void setPointCloudRange(float pMin, float pMax);
 
 		/**
@@ -319,7 +318,6 @@ namespace ofxRSSDK
 		//  "Frame" denotes a full Surface
 
 		//get a camera space point from a depth image point
-		const ofPoint		getDepthSpacePoint(float pImageX, float pImageY, float pImageZ);
 		const ofPoint		getDepthSpacePoint(int pImageX, int pImageY, uint16_t pImageZ);
 		const ofPoint		getDepthSpacePoint(ofPoint pImageCoords);
 
@@ -351,17 +349,9 @@ namespace ofxRSSDK
 
 	private:
 
-		bool			
+		bool
 			mIsInit,
-			mIsRunning,
-			mStreamsVideo,
-			mStreamsDepth,
-			mStreamsIR,
-			mShouldAlign,
-			mShouldGetDepthAsColor,
-			mShouldGetPointCloud,
-			mHasChangedResolution;
-
+			mIsRunning;
 		bool 
 			isUsingPostProcessing,
 			isUsingFilterDec, 
