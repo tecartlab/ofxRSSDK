@@ -317,37 +317,47 @@ namespace ofxRSSDK
 		//	"Coords" denotes texture space (U,V) coordinates
 		//  "Frame" denotes a full Surface
 
-		//get a camera space point from a depth image point
-		const ofPoint		getDepthSpacePoint(int pImageX, int pImageY, uint16_t pImageZ);
-		const ofPoint		getDepthSpacePoint(ofPoint pImageCoords);
+		/**
+		This allignes the Video image with the depth cloud.
 
-		//get a ofColor object from a depth image point
-		const ofColor		getColorFromDepthImage(float pImageX, float pImageY, float pImageZ);
-		const ofColor		getColorFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ);
-		const ofColor		getColorFromDepthImage(ofPoint pImageCoords);
+		If you want to get Aligned Space points you need to call this method first,
+		once each time after an update().
+		*/
+		bool alignPointCloudToVideo();
+		/**
+		This allignes the Video image with the depth cloud.
 
-		//get a ofColor object from a depth camera space point
-		const ofColor		getColorFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ);
-		const ofColor		getColorFromDepthSpace(ofPoint pCameraPoint);
+		If you want to get Aligned Space points you need to call this method fist, 
+		once each time after an update().
+		*/
+		bool alignPointCloudToInfraRed();
 
-		//get ofColor space UVs from a depth image point
-		const glm::vec2		getColorCoordsFromDepthImage(float pImageX, float pImageY, float pImageZ);
-		const glm::vec2		getColorCoordsFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ);
-		const glm::vec2		getColorCoordsFromDepthImage(ofPoint pImageCoords);
+		/**
+		Get a local space point from an aligned image point.
+		
+		if you want to use video or infrared pixel coordinates to gather the space
+		coordinate, call first one of the alignePointCloudToxxxx() function.
+		*/
+		glm::vec3 getAlignedSpacePoint(glm::vec2 imageCoordinate);
 
-		//get ofColor space UVs from a depth space point
-		const glm::vec2		getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ);
-		const glm::vec2		getColorCoordsFromDepthSpace(ofPoint pCameraPoint);
+		/**
+		Get the distance of an aligned image point.
+
+		if you want to use video or infrared pixel coordinates to gather the space
+		coordinate, call first one of the alignePointCloudToxxxx() function.
+		*/
+		float getAlignedSpaceDistance(glm::vec2 imageCoordinate);
 
 		const glm::vec2&	getDepthSize() { return mDepthStreamSize;  }
-		const int		getDepthWidth() { return mDepthStreamSize.x;  }
-		const int		getDepthHeight() { return mDepthStreamSize.y; }
+		const int			getDepthWidth() { return mDepthStreamSize.x;  }
+		const int			getDepthHeight() { return mDepthStreamSize.y; }
 
-		const glm::vec2&	getRgbSize() { return mVideoStreamSize; }
-		const int		getRgbWidth() { return mVideoStreamSize.x; }
-		const int		getRgbHeight() { return mVideoStreamSize.y; }
+		const glm::vec2&	getVideoSize() { return mVideoStreamSize; }
+		const int			getVideoWidth() { return mVideoStreamSize.x; }
+		const int			getVideoHeight() { return mVideoStreamSize.y; }
 
 	private:
+		float RSDevice::get_depth_scale(rs2::device dev);
 
 		bool
 			mIsInit,
@@ -397,6 +407,13 @@ namespace ofxRSSDK
 
 		// current Depth frame
 		rs2::frame rs2Depth;
+
+		// alligned depth frame
+		rs2::frame rs2Depth_aligned;
+
+		struct rs2_intrinsics rs2DepthIntrinsics;
+		struct rs2_intrinsics rs2VideoIntrinsics;
+		struct rs2_intrinsics rsInfraLeftIntrinsics;
 
 		// Declare filters
 		rs2::decimation_filter rs2Filter_dec;

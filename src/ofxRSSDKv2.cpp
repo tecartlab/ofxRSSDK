@@ -116,9 +116,21 @@ namespace ofxRSSDK
 		
 		rs2Device = rs2PipeLineProfile.get_device();
 
+		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
+		rs2DepthIntrinsics = depth_stream.get_intrinsics();
+
+		auto video_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
+		rs2VideoIntrinsics = video_stream.get_intrinsics();
+
+		auto infra_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_INFRARED).as<rs2::video_stream_profile>();
+		rs2VideoIntrinsics = infra_stream.get_intrinsics();
+
 		// we are setting the depth units to one millimeter (default)
 		auto sensor = rs2Device.first<rs2::depth_sensor>();
 		sensor.set_option(RS2_OPTION_DEPTH_UNITS, 0.001);
+
+		//float depthScale = get_depth_scale(rs2Device);
+		//cout << "depth scale =" << depthScale << endl;
 
 		// Capture 30 frames to give autoexposure, etc. a chance to settle
 		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
@@ -274,9 +286,49 @@ namespace ofxRSSDK
 			cout << "final depth point cloud size: " << mPointCloud.getVertices().size() << endl;
 			cout << "elapsed time " << lastTime - firstTime  << endl;
 			*/
+			
+			/*
+
+			alignPointCloudToVideo();
+			
+			glm::vec2 col = glm::vec2(mVideoStreamSize.x / 2, mVideoStreamSize.y / 2);
+
+			rs2::depth_frame alignedDepthFrame = rs2Depth_aligned.as<rs2::depth_frame>();
+
+			float d_pt[3] = { 0 };
+			float d_px[2] = { col.x, col.y };
+
+			float depth = alignedDepthFrame.get_distance(d_px[0], d_px[1]);
+
+			rs2_deproject_pixel_to_point(d_pt, &rs2DepthIntrinsics, d_px, depth);
+
+			glm::vec3 d_vpt = glm::vec3(d_pt[0], d_pt[1], d_pt[2]);
+			cout << "color pixel x=" << col.x << ", y=" << col.y << endl;
+			cout << "depth pixel x=" << d_vpt.x << ", y=" << d_vpt.y << ", z =" << d_vpt.z << endl;
+			*/
+
+
+			rs2Depth_aligned = rs2Depth;
+
 			return true;
 		}
 		return false;
+	}
+
+	bool RSDevice::alignPointCloudToVideo() {
+		// allign a whole depth frame to a corresponding video frame
+		rs2::align align(rs2_stream::RS2_STREAM_COLOR);
+		rs2::frameset aligned_frame = align.process(rs2FrameSet);
+		rs2Depth_aligned = aligned_frame.get_depth_frame();
+		return true;
+	}
+
+	bool RSDevice::alignPointCloudToInfraRed() {
+		// allign a whole depth frame to a corresponding video frame
+		rs2::align align(rs2_stream::RS2_STREAM_INFRARED);
+		rs2::frameset aligned_frame = align.process(rs2FrameSet);
+		rs2Depth_aligned = aligned_frame.get_depth_frame();
+		return true;
 	}
 
 	bool RSDevice::stop()
@@ -378,159 +430,24 @@ namespace ofxRSSDK
 //	"Coords" denotes texture space (U,V) coordinates
 //  "Frame" denotes a full Surface
 
-	/*
-	glm::vec3 RSDevice::getDepthSpacePoint(const rs2::depth_frame& frame, glm::vec2 u)
+
+	glm::vec3 RSDevice::getAlignedSpacePoint(glm::vec2 imageCoordinate)
 	{
+		rs2::depth_frame alignedDepthFrame = rs2Depth_aligned.as<rs2::depth_frame>();
 
-		float upixel[2]; // From pixel
-		float upoint[3]; // From point (in 3D)
+		float d_pt[3] = { 0 };
+		float d_px[2] = { imageCoordinate.x, imageCoordinate.y };
 
-		// Copy pixels into the arrays (to match rsutil signatures)
-		upixel[0] = u.x;
-		upixel[1] = u.y;
+		float depth = alignedDepthFrame.get_distance(d_px[0], d_px[1]);
+		cout << "color pixel depth= " << depth << endl;
 
-		// Query the frame for distance
-		auto udist = .get_distance(upixel[0], upixel[1]);
+		rs2_deproject_pixel_to_point(d_pt, &rs2DepthIntrinsics, d_px, depth);
 
-		// Deproject from pixel to point in 3D
-		rs2_intrinsics intr = frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics(); // Calibration data
-		rs2_deproject_pixel_to_point(upoint, &intr, upixel, udist);
-
-		return ofPoint(upoint[0], upoint[1], upoint[2]);
-	}
-	*/
-
-	const ofPoint RSDevice::getDepthSpacePoint(int pImageX, int pImageY, uint16_t pImageZ)
-	{
-		return getDepthSpacePoint(static_cast<float>(pImageX), static_cast<float>(pImageY), static_cast<float>(pImageZ));
+		return glm::vec3(d_pt[0], d_pt[1], d_pt[2]);
 	}
 
-	const ofPoint RSDevice::getDepthSpacePoint(ofPoint pImageCoords)
-	{
-		return getDepthSpacePoint(pImageCoords.x, pImageCoords.y, pImageCoords.z);
-	}
-
-	//get a Color object from a depth image point
-	const ofColor RSDevice::getColorFromDepthImage(float pImageX, float pImageY, float pImageZ)
-	{
-		/**
-		if (mCoordinateMapper)
-		{
-			PXCPoint3DF32 cPoint;
-			cPoint.x = pImageX;
-			cPoint.y = pImageY;
-			cPoint.z = pImageZ;
-			PXCPoint3DF32 *cInPoint = new PXCPoint3DF32[1];
-			cInPoint[0] = cPoint;
-			PXCPointF32 *cOutPoints = new PXCPointF32[1];
-			mCoordinateMapper->MapDepthToColor(1, cInPoint, cOutPoints);
-
-			float cColorX = cOutPoints[0].x;
-			float cColorY = cOutPoints[0].y;
-
-			delete cInPoint;
-			delete cOutPoints;
-			if (cColorX >= 0 && cColorX < mRgbSize.x&&cColorY >= 0 && cColorY < mRgbSize.y)
-			{
-				return mRgbFrame.getColor(cColorX, cColorY);
-			}
-		}
-		**/
-		return ofColor::black;
-	}
-
-	const ofColor RSDevice::getColorFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ)
-	{
-		/**
-		if (mCoordinateMapper)
-			return getColorFromDepthImage(static_cast<float>(pImageX),static_cast<float>(pImageY),static_cast<float>(pImageZ));
-		**/
-		return ofColor::black;
-	}
-
-	const ofColor RSDevice::getColorFromDepthImage(ofPoint pImageCoords)
-	{
-		/**
-		if (mCoordinateMapper)
-			return getColorFromDepthImage(pImageCoords.x, pImageCoords.y, pImageCoords.z);
-			**/
-		return ofColor::black;
-	}
-
-
-		//get a ofColor object from a depth camera space point
-	const ofColor RSDevice::getColorFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ)
-	{
-			return ofColor::black;
-	}
-
-	const ofColor RSDevice::getColorFromDepthSpace(ofPoint pCameraPoint)
-	{
-		/**
-		if (mCoordinateMapper)
-			return getColorFromDepthSpace(pCameraPoint.x, pCameraPoint.y, pCameraPoint.z);
-		**/
-		return ofColor::black;
-	}
-
-		//get ofColor space UVs from a depth image point
-	const glm::vec2 RSDevice::getColorCoordsFromDepthImage(float pImageX, float pImageY, float pImageZ)
-	{
-		/**
-		if (mCoordinateMapper)
-		{
-			PXCPoint3DF32 cPoint;
-			cPoint.x = pImageX;
-			cPoint.y = pImageY;
-			cPoint.z = pImageZ;
-
-			PXCPoint3DF32 *cInPoint = new PXCPoint3DF32[1];
-			cInPoint[0] = cPoint;
-			PXCPointF32 *cOutPoints = new PXCPointF32[1];
-			mCoordinateMapper->MapDepthToColor(1, cInPoint, cOutPoints);
-
-			float cColorX = cOutPoints[0].x;
-			float cColorY = cOutPoints[0].y;
-
-			delete cInPoint;
-			delete cOutPoints;
-			return ofVec2f(cColorX / (float)mRgbSize.x, cColorY / (float)mRgbSize.y);
-		}
-		**/
-		return ofVec2f(0);
-	}
-
-	const glm::vec2 RSDevice::getColorCoordsFromDepthImage(int pImageX, int pImageY, uint16_t pImageZ)
-	{
-		return getColorCoordsFromDepthImage(static_cast<float>(pImageX), static_cast<float>(pImageY), static_cast<float>(pImageZ));
-	}
-
-	const glm::vec2 RSDevice::getColorCoordsFromDepthImage(ofPoint pImageCoords)
-	{
-		return getColorCoordsFromDepthImage(pImageCoords.x, pImageCoords.y, pImageCoords.z);
-	}
-
-		//get ofColor space UVs from a depth space point
-	const glm::vec2 RSDevice::getColorCoordsFromDepthSpace(float pCameraX, float pCameraY, float pCameraZ)
-	{
-		/**
-		if (mCoordinateMapper)
-		{
-			PXCPoint3DF32 cPoint;
-			cPoint.x = pCameraX; cPoint.y = pCameraY; cPoint.z = pCameraZ;
-
-			PXCPoint3DF32 *cInPoint = new PXCPoint3DF32[1];
-			cInPoint[0] = cPoint;
-			PXCPointF32 *cOutPoint = new PXCPointF32[1];
-			mCoordinateMapper->ProjectCameraToColor(1, cInPoint, cOutPoint);
-
-			ofVec2f cRetPt(cOutPoint[0].x / static_cast<float>(mRgbSize.x), cOutPoint[0].y / static_cast<float>(mRgbSize.y));
-			delete cInPoint;
-			delete cOutPoint;
-			return cRetPt;
-		}
-		**/
-		return glm::vec2();
+	float RSDevice::getAlignedSpaceDistance(glm::vec2 imageCoordinate) {
+		return glm::length(getAlignedSpacePoint(imageCoordinate));
 	}
 
 	void RSDevice::checkConnectedDialog() {
@@ -540,11 +457,6 @@ namespace ofxRSSDK
 			ofSystemAlertDialog("No Device found. Have you attached a RealSense D400 camera?");
 			list = ctx.query_devices();
 		}
-	}
-
-	const glm::vec2 RSDevice::getColorCoordsFromDepthSpace(ofPoint pCameraPoint)
-	{
-		return getColorCoordsFromDepthSpace(pCameraPoint.x, pCameraPoint.y, pCameraPoint.z);
 	}
 
 	void RSDevice::usePostProcessing_p(bool & enable) {
@@ -667,5 +579,18 @@ namespace ofxRSSDK
 		deviceLaser(enable);
 	}
 
+	float RSDevice::get_depth_scale(rs2::device dev)
+	{
+		// Go over the device's sensors
+		for (rs2::sensor& sensor : dev.query_sensors())
+		{
+			// Check if the sensor if a depth sensor
+			if (rs2::depth_sensor dpt = sensor.as<rs2::depth_sensor>())
+			{
+				return dpt.get_depth_scale();
+			}
+		}
+		throw std::runtime_error("Device does not have a depth sensor");
+	}
 }
 #pragma endregion
