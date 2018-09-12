@@ -44,13 +44,13 @@ namespace ofxRSSDK
 		param_usePostProcessing.set("use PostProcessing", false);
 		param_usePostProcessing.addListener(this, &RSDevice::usePostProcessing_p);
 
-		param_filterDecimation.set("use decimation filter", false);
+		param_filterDecimation.set("use decimation filter", true);
 		param_filterDecimation.addListener(this, &RSDevice::filterDecimation_p);
 
 		param_filterDecimation_mag.set("decimation magnitude", 2, 2, 8);
 		param_filterDecimation_mag.addListener(this, &RSDevice::filterDecimation_mag_p);
 
-		param_filterSpatial.set("use spatial filter", false);
+		param_filterSpatial.set("use spatial filter", true);
 		param_filterSpatial.addListener(this, &RSDevice::filterSpatial_p);
 
 		param_filterSpatial_mag.set("spatial magnitude", 2, 2, 5);
@@ -62,7 +62,7 @@ namespace ofxRSSDK
 		param_filterSpatial_smoothDelta.set("spatial smoothDelta", 20, 1, 50);
 		param_filterSpatial_smoothDelta.addListener(this, &RSDevice::filterSpatial_smoothDelta_p);
 
-		param_filterTemporal.set("use temporal Filter", false);
+		param_filterTemporal.set("use temporal Filter", true);
 		param_filterTemporal.addListener(this, &RSDevice::filterTemporal_p);
 
 		param_filterTemporal_smoothAlpha.set("temporal smoothAlpha", 0.4, 0.0, 1.0);
@@ -77,9 +77,11 @@ namespace ofxRSSDK
 		param_filterDisparities.set("use disparity filters", false);
 		param_filterDisparities.addListener(this, &RSDevice::filterDisparities_p);
 
-		param_deviceLaser.set("laser power", 0.5);
+		param_deviceLaser.set("use laser projector", true);
 		param_deviceLaser.addListener(this, &RSDevice::deviceLaser_p);
 
+		param_deviceLaser_mag.set("laser power", 0.5, 0., 1.0);
+		param_deviceLaser_mag.addListener(this, &RSDevice::deviceLaser_mag_p);
 	}
 
 #pragma region Init
@@ -639,12 +641,11 @@ namespace ofxRSSDK
 		isUsingFilterDisparity = enable;
 	}
 
-	void RSDevice::deviceLaser(float const & magnitude) {
+	void RSDevice::deviceLaser_mag(float const & magnitude) {
 		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
 
-		if (rs2DepthSensor.supports(RS2_OPTION_EMITTER_ENABLED) && magnitude > 0.0)
+		if (rs2DepthSensor.supports(RS2_OPTION_EMITTER_ENABLED))
 		{
-			rs2DepthSensor.set_option(RS2_OPTION_EMITTER_ENABLED, 1.f); // Enable emitter
 			if (rs2DepthSensor.supports(RS2_OPTION_LASER_POWER))
 			{
 				// Query min and max values:
@@ -652,12 +653,21 @@ namespace ofxRSSDK
 				rs2DepthSensor.set_option(RS2_OPTION_LASER_POWER, range.max * magnitude); // Set max power
 			}
 		}
-		else {
-			rs2DepthSensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0.f); // Disable emitter
+	}
+	void RSDevice::deviceLaser_mag_p(float & magnitude) {
+		deviceLaser_mag(magnitude);
+	}
+
+	void RSDevice::deviceLaser(bool const & enable) {
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_EMITTER_ENABLED))
+		{
+			rs2DepthSensor.set_option(RS2_OPTION_EMITTER_ENABLED, (enable)?1.:0.); // Enable emitter
 		}
 	}
-	void RSDevice::deviceLaser_p(float & magnitude) {
-		deviceLaser(magnitude);
+	void RSDevice::deviceLaser_p(bool & enable) {
+		deviceLaser(enable);
 	}
 
 }

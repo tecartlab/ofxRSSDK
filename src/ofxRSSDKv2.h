@@ -277,11 +277,18 @@ namespace ofxRSSDK
 		public: ofParameter<bool> param_filterDisparities; //Uses the disparity filters parameter for use with ofxGUI
 
 		/**
+		enable the laser projektor power
+		*/
+		public: void deviceLaser(bool const & enable);
+		private: void deviceLaser_p(bool & enable);
+		public: ofParameter<bool> param_deviceLaser; //device laser parameter for use with ofxGUI
+		
+		/**
 		set the laser projektor power
 		*/
-		public: void deviceLaser(float const & magnitude);
-		private: void deviceLaser_p(float & magnitude);
-		public: ofParameter<float> param_deviceLaser; //device laser parameter for use with ofxGUI
+		public: void deviceLaser_mag(float const & magnitude);
+		private: void deviceLaser_mag_p(float & magnitude);
+		public: ofParameter<float> param_deviceLaser_mag; //device laser parameter for use with ofxGUI
 
 		const ofPixels&	getVideoFrame(); 
 		const ofPixels&	getDepthFrame();

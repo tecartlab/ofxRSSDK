@@ -34,6 +34,7 @@ void ofApp::setup()
 	// the device settings should be loaded/set after the start()
 	gui_device.setup("Device", "deviceSettings", 200, 0);
 	gui_device.add(mRSSDK->param_deviceLaser);
+	gui_device.add(mRSSDK->param_deviceLaser_mag);
 
 	setupCamera();
 }
