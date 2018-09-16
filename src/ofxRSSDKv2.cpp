@@ -78,6 +78,7 @@ namespace ofxRSSDK
 
 		param_deviceLaser_mag.set("laser power", 0.5, 0., 1.0);
 		param_deviceLaser_mag.addListener(this, &RSDevice::deviceLaser_mag_p);
+
 	}
 
 #pragma region Init
