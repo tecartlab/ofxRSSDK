@@ -31,7 +31,7 @@ public:
 private:
 	void setupCamera();
 	
-	RSDevicePtr mRSSDK;	
+	RSDevicePtr		realSense;	
 	ofMesh			mCloudMesh;
 	ofEasyCam		mCamera;
 

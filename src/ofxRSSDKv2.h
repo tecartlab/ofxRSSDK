@@ -15,6 +15,7 @@
 #include <iostream>             // Terminal IO
 #include <sstream>              // Stringstreams
 
+#include "Helper.cpp"
 
 #ifndef STBIW_MALLOC
 #define STBIW_MALLOC(sz)        malloc(sz)
@@ -126,15 +127,16 @@ namespace ofxRSSDK
 
 		/**
 		Starts the device with these parameters
-		@param useDepth streaming depth
-		@param useVideo streaming video
-		@param useInfrared streaming left infrared stream
-		@param depthWidth - width of depth and infrared resolution
-		@param depthHeight - hight of depth and infrared resolution (424 x 240, 480 x 270, 640 x 360, 640 x 400, 640 x 480, [848 x 480], 1280 x 720, 1280 x 800)
-		@param videoWidth - width of video resolution
-		@param videoHeight - hight of depth resolution (320 x 180, 320 x 240, 424 x 240, 480 x 270, 640 x 360, 640 x 480, 848 x 480, 960 x 540, [1280 x 720], 1920 1080)
+		@param device serial
+		@return false if no device is attached
 		*/
-		bool start(int depthWidth = 848, int depthHeight = 480, int videoWidth = 1280, int videoHeight = 720);
+		bool start(const std::string &serial);
+		/**
+		Starts the first device it finds.
+		@return false if no device is attached
+		*/
+		bool start();
+
 		/**
 		update point cloud. 
 		@param color choose texture to update with
@@ -335,16 +337,56 @@ namespace ofxRSSDK
 		*/
 		float getSpaceDistanceFromDepthFrame(glm::vec2 depthCoordinate);
 
-		const glm::vec2&	getDepthSize() { return mDepthStreamSize;  }
+		/**
+		Sets the device with these parameters
+		(424 x 240, 480 x 270, 640 x 360, 640 x 400, 640 x 480, [848 x 480], 1280 x 720, 1280 x 800)
+		NOTICE1: if the device has already started, you need to restart the device to make this settings active
+		@param width of depth and infrared resolution
+		@param hight of depth and infrared resolution
+		*/
+		void				setDepthSize(int width, int height);
+
+		// returns the point cloud resolution after all postprocessing filters have been applied
+		const glm::vec2&	getDepthSize() { return mDepthStreamSize;  } 
 		const int			getDepthWidth() { return mDepthStreamSize.x;  }
 		const int			getDepthHeight() { return mDepthStreamSize.y; }
 
+		/**
+		Sets the device with these parameters
+		(320 x 180, 320 x 240, 424 x 240, 480 x 270, 640 x 360, 640 x 480, 848 x 480, 960 x 540, [1280 x 720], 1920 1080)
+		NOTICE: if the device has already started, you need to restart the device to make this settings active
+		@param width of video resolution
+		@param hight of depth resolution 
+		*/
+		void				setVideoSize(int width, int height);
+
+		// returns the video stream resolution
 		const glm::vec2&	getVideoSize() { return mVideoStreamSize; }
 		const int			getVideoWidth() { return mVideoStreamSize.x; }
 		const int			getVideoHeight() { return mVideoStreamSize.y; }
 
+		/**
+		return the number of valid device attached
+		*/
+		int					countDevicesAttached(); 
+
+		/**
+		Get the SerialNumber of the chosen device.
+		if index is set to -1, it will get the serial from the currently running device, 
+		if no device is running it will attempt do get the serial from the first device it finds.
+		NOTICE: if no device is attached, this method will wait until a device is attached.
+		*/
+		const std::string	getSerialNumber(int index); // get the serialnumber of the running device.
+
+		/**
+		Print the info of the currently running device or the first device detected
+		*/
+		void printDeviceInfo();
+
 	private:
 		float RSDevice::get_depth_scale(rs2::device dev);
+
+		int depthWidth, depthHeight, videoWidth, videoHeight;
 
 		bool
 			mIsInit,

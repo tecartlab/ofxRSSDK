@@ -36,6 +36,11 @@ namespace ofxRSSDK
 		isUsingFilterDisparity = false;
 		isUsingPostProcessing = false;
 
+		depthWidth = 848;
+		depthHeight = 480;
+		videoWidth = 1280;
+		videoHeight = 720;
+
 		// setting up ofParameters
 		param_usePostProcessing.set("use PostProcessing", false);
 		param_usePostProcessing.addListener(this, &RSDevice::usePostProcessing_p);
@@ -90,56 +95,75 @@ namespace ofxRSSDK
 		mPointCloudRange = ofVec2f(pMin,pMax);
 	}
 
-	bool RSDevice::start(int depthWidth, int depthHeight, int videoWidth, int videoHeight)
+	bool RSDevice::start()
 	{
-		mPointCloud.clear();
-		mPointCloud.setMode(OF_PRIMITIVE_POINTS);
-		mPointCloud.enableColors();
+		if (countDevicesAttached()) {
+			return start(how_to::get_device_serial(how_to::get_device(0)));
+		}
+		else {
+			ofLogError("Cannot start device. No devices attaches.");
+		}
+		return false;
+	}
 
-		mVideoStreamSize.x = videoWidth;
-		mVideoStreamSize.y = videoHeight;
+	bool RSDevice::start(const std::string &serial)
+	{
+		if (countDevicesAttached()) {
+			mPointCloud.clear();
+			mPointCloud.setMode(OF_PRIMITIVE_POINTS);
+			mPointCloud.enableColors();
 
-		mInfraredStreamSize.x = depthWidth;
-		mInfraredStreamSize.y = depthHeight;
+			mVideoStreamSize.x = videoWidth;
+			mVideoStreamSize.y = videoHeight;
 
-		//Create a configuration for configuring the pipeline with a non default profile
-		rs2::config cfg;
+			mInfraredStreamSize.x = depthWidth;
+			mInfraredStreamSize.y = depthHeight;
 
-		//Add desired streams to configuration
-		//cfg.enable_stream(RS2_STREAM_DEPTH, RS2_FORMAT_Z16); // Enable default depth
-											 // For the color stream, set format to RGBA
-											 // To allow blending of the color frame on top of the depth frame
-		//cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGB8);
-		cfg.enable_stream(RS2_STREAM_DEPTH, depthWidth, depthHeight, RS2_FORMAT_Z16, 30);
-		cfg.enable_stream(RS2_STREAM_COLOR, videoWidth, videoHeight, RS2_FORMAT_RGB8, 30);
-		cfg.enable_stream(RS2_STREAM_INFRARED, 1);
+			//Create a configuration for configuring the pipeline with a non default profile
+			rs2::config cfg;
 
-		rs2PipeLineProfile = rs2Pipe.start(cfg);
-		
-		rs2Device = rs2PipeLineProfile.get_device();
+			//Add desired streams to configuration
+			//cfg.enable_stream(RS2_STREAM_DEPTH, RS2_FORMAT_Z16); // Enable default depth
+												 // For the color stream, set format to RGBA
+												 // To allow blending of the color frame on top of the depth frame
+			//cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGB8);
+			cfg.enable_stream(RS2_STREAM_DEPTH, depthWidth, depthHeight, RS2_FORMAT_Z16, 30);
+			cfg.enable_stream(RS2_STREAM_COLOR, videoWidth, videoHeight, RS2_FORMAT_RGB8, 30);
+			cfg.enable_stream(RS2_STREAM_INFRARED, 1);
 
-		auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
-		rs2DepthIntrinsics = depth_stream.get_intrinsics();
+			cfg.enable_device(serial);
 
-		auto video_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
-		rs2VideoIntrinsics = video_stream.get_intrinsics();
+			rs2PipeLineProfile = rs2Pipe.start(cfg);
 
-		auto infra_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_INFRARED).as<rs2::video_stream_profile>();
-		rsInfraLeftIntrinsics = infra_stream.get_intrinsics();
+			rs2Device = rs2PipeLineProfile.get_device();
 
-		// we are setting the depth units to one millimeter (default)
-		auto sensor = rs2Device.first<rs2::depth_sensor>();
-		sensor.set_option(RS2_OPTION_DEPTH_UNITS, 0.001);
+			auto depth_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
+			rs2DepthIntrinsics = depth_stream.get_intrinsics();
 
-		//float depthScale = get_depth_scale(rs2Device);
-		//cout << "depth scale =" << depthScale << endl;
+			auto video_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
+			rs2VideoIntrinsics = video_stream.get_intrinsics();
 
-		// Capture 30 frames to give autoexposure, etc. a chance to settle
-		for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
+			auto infra_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_INFRARED).as<rs2::video_stream_profile>();
+			rsInfraLeftIntrinsics = infra_stream.get_intrinsics();
 
-		mIsRunning = true;
+			// we are setting the depth units to one millimeter (default)
+			auto sensor = rs2Device.first<rs2::depth_sensor>();
+			sensor.set_option(RS2_OPTION_DEPTH_UNITS, 0.001);
 
-		return true;
+			//float depthScale = get_depth_scale(rs2Device);
+			//cout << "depth scale =" << depthScale << endl;
+
+			// Capture 30 frames to give autoexposure, etc. a chance to settle
+			for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
+
+			mIsRunning = true;
+
+			return true;
+		}
+		else {
+			ofLogError("Cannot start device. No devices attaches.");
+		}
+		return false;
 	}
 
 	bool RSDevice::isRunning() {
@@ -410,6 +434,18 @@ namespace ofxRSSDK
 		return depthFrame.get_distance(depthCoordinate.x, depthCoordinate.y);
 	}
 
+	void RSDevice::setVideoSize(int width, int height)
+	{
+		videoWidth = width;
+		videoHeight = height;
+	}
+
+	void RSDevice::setDepthSize(int width, int height)
+	{
+		depthWidth = width;
+		depthHeight = height;
+	}
+
 	void RSDevice::checkConnectedDialog() {
 		rs2::context ctx;
 		auto list = ctx.query_devices(); // Get a snapshot of currently connected devices
@@ -537,6 +573,36 @@ namespace ofxRSSDK
 	}
 	void RSDevice::deviceLaser_p(bool & enable) {
 		deviceLaser(enable);
+	}
+
+	int RSDevice::countDevicesAttached()
+	{
+		return how_to::nof_devices_attached();
+	}
+
+	const std::string RSDevice::getSerialNumber(int index)
+	{
+		if (index == -1) {
+			if (isRunning()) {
+				return how_to::get_device_serial(rs2Device);
+			}
+			else {
+				return how_to::get_device_serial(how_to::get_device(0));
+			}
+		}  
+		return how_to::get_device_serial(how_to::get_device(index));
+	}
+
+	void RSDevice::printDeviceInfo()
+	{
+		if (isRunning()) {
+			how_to::print_device_information(rs2Device);
+		}
+		else {
+			if (how_to::nof_devices_attached() > 0) {
+				how_to::print_device_information(how_to::get_device(0));
+			}
+		}
 	}
 
 	float RSDevice::get_depth_scale(rs2::device dev)

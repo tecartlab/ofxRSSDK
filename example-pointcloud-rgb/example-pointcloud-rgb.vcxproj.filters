@@ -40,6 +40,9 @@
     <ClCompile Include="..\..\ofxGui\src\ofxToggle.cpp">
       <Filter>addons\ofxGui\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\Helper.cpp">
+      <Filter>src\addons\ofxRSSDKv2</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">

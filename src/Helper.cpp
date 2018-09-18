@@ -16,6 +16,60 @@
 class how_to
 {
 public:
+	static int nof_devices_attached()
+	{
+		// First, create a rs2::context.
+		// The context represents the current platform with respect to connected devices
+		rs2::context ctx;
+
+		// Using the context we can get all connected devices in a device list
+		rs2::device_list devices = ctx.query_devices();
+
+		rs2::device selected_device;
+
+		return devices.size();
+	}
+
+	static rs2::device get_device(int device_index)
+	{
+		// First, create a rs2::context.
+		// The context represents the current platform with respect to connected devices
+		rs2::context ctx;
+
+		// Using the context we can get all connected devices in a device list
+		rs2::device_list devices = ctx.query_devices();
+
+		rs2::device selected_device;
+		if (devices.size() == 0)
+		{
+			std::cerr << "No device connected, please connect a RealSense device" << std::endl;
+
+			//To help with the boilerplate code of waiting for a device to connect
+			//The SDK provides the rs2::device_hub class
+			rs2::device_hub device_hub(ctx);
+
+			//Using the device_hub we can block the program until a device connects
+			selected_device = device_hub.wait_for_device();
+		} else if (devices.size() == device_index)
+		{
+			std::cerr << "Chosen device is not connected, please connect a RealSense device" << std::endl;
+
+			//To help with the boilerplate code of waiting for a device to connect
+			//The SDK provides the rs2::device_hub class
+			rs2::device_hub device_hub(ctx);
+
+			//Using the device_hub we can block the program until a device connects
+			selected_device = device_hub.wait_for_device();
+		}
+		else
+		{
+			// Update the selected device
+			selected_device = devices[device_index];
+		}
+
+		return selected_device;
+	}
+
 	static rs2::device get_a_realsense_device()
 	{
 		// First, create a rs2::context.
@@ -86,6 +140,16 @@ public:
 			else
 				std::cout << "N/A" << std::endl;
 		}
+	}
+
+	static std::string get_device_serial(const rs2::device& dev)
+	{
+		// the serial number of the device:
+		std::string sn = "########";
+		if (dev.supports(RS2_CAMERA_INFO_SERIAL_NUMBER))
+			sn = dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER);
+
+		return sn;
 	}
 
 	static std::string get_device_name(const rs2::device& dev)

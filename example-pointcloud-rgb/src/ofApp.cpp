@@ -5,36 +5,37 @@ void ofApp::setup()
 {
 	ofSetWindowShape(1280, 960);
 
-	mRSSDK = RSDevice::createUniquePtr();
+	realSense = RSDevice::createUniquePtr();
 
-	mRSSDK->checkConnectedDialog();
+	realSense->checkConnectedDialog();
 	ofLogNotice("Device detected..");
 
 	gui_post.setup("PostProcessing", "postprocessingSetup", 0, 0); // most of the time you don't need a name but don't forget to call setup
-	gui_post.add(mRSSDK->param_usePostProcessing);
-	gui_post.add(mRSSDK->param_filterDecimation);
-	gui_post.add(mRSSDK->param_filterDecimation_mag);
-	gui_post.add(mRSSDK->param_filterDisparities);
-	gui_post.add(mRSSDK->param_filterSpatial);
-	gui_post.add(mRSSDK->param_filterSpatial_smoothAlpha);
-	gui_post.add(mRSSDK->param_filterSpatial_smoothDelta);
-	gui_post.add(mRSSDK->param_filterSpatial_mag);
-	gui_post.add(mRSSDK->param_filterTemporal);
-	gui_post.add(mRSSDK->param_filterTemporal_smoothAlpha);
-	gui_post.add(mRSSDK->param_filterTemporal_smoothDelta);
-	gui_post.add(mRSSDK->param_filterTemporal_persistency);
+	gui_post.add(realSense->param_usePostProcessing);
+	gui_post.add(realSense->param_filterDecimation);
+	gui_post.add(realSense->param_filterDecimation_mag);
+	gui_post.add(realSense->param_filterDisparities);
+	gui_post.add(realSense->param_filterSpatial);
+	gui_post.add(realSense->param_filterSpatial_smoothAlpha);
+	gui_post.add(realSense->param_filterSpatial_smoothDelta);
+	gui_post.add(realSense->param_filterSpatial_mag);
+	gui_post.add(realSense->param_filterTemporal);
+	gui_post.add(realSense->param_filterTemporal_smoothAlpha);
+	gui_post.add(realSense->param_filterTemporal_smoothDelta);
+	gui_post.add(realSense->param_filterTemporal_persistency);
 
+	//realSense->enablePointCloud(CloudRes::FULL_RES);
+	realSense->setPointCloudRange(100.0f,1000.0f);
 
-
-	//mRSSDK->enablePointCloud(CloudRes::FULL_RES);
-	mRSSDK->setPointCloudRange(100.0f,1000.0f);
-
-	mRSSDK->start();
-
-	// the device settings should be loaded/set after the start()
 	gui_device.setup("Device", "deviceSettings", 200, 0);
-	gui_device.add(mRSSDK->param_deviceLaser);
-	gui_device.add(mRSSDK->param_deviceLaser_mag);
+
+	if (realSense->start()) {
+		// the device settings should be loaded/set after the start()
+		gui_device.add(realSense->param_deviceLaser);
+		gui_device.add(realSense->param_deviceLaser_mag);
+	}
+
+	realSense->printDeviceInfo();
 
 	setupCamera();
 }
@@ -42,14 +43,14 @@ void ofApp::setup()
 //--------------------------------------------------------------
 void ofApp::update()
 {
-	if (mRSSDK->update(ofxRSSDK::PointCloud::INFRALEFT)) {
+	if (realSense->update(ofxRSSDK::PointCloud::INFRALEFT)) {
 		// if a frame has been updated, the code continues in here,
 		// in case you need to do something special...
-		glm::vec2 col = glm::vec2(mRSSDK->getDepthWidth() / 2, mRSSDK->getDepthHeight() / 2);
-		glm::vec3 d_pt = mRSSDK->getSpacePointFromDepthFrameCoord(col);
+		glm::vec2 col = glm::vec2(realSense->getDepthWidth() / 2, realSense->getDepthHeight() / 2);
+		glm::vec3 d_pt = realSense->getSpacePointFromDepthFrameCoord(col);
 		cout << "color pixel x=" << col.x << ", y=" << col.y << endl;
 		cout << "depth pixel x=" << d_pt.x << ", y=" << d_pt.y << ", z =" << d_pt.z << endl;
-		float distance = mRSSDK->getSpaceDistanceFromDepthFrame(col);
+		float distance = realSense->getSpaceDistanceFromDepthFrame(col);
 		cout << "distance =" << distance << endl;
 	}
 }
@@ -60,16 +61,16 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
-	mRSSDK->drawVideoStream(ofRectangle(0, 0, ofGetWidth(), ofGetHeight()));
-	//mRSSDK->drawVideoStream(ofRectangle(0, 0, ofGetWidth() / 2., ofGetHeight() / 2.));
-	//mRSSDK->drawDepthStream(ofRectangle(ofGetWidth() / 2., 0, ofGetWidth() / 2., ofGetHeight() / 2.));
-	//mRSSDK->drawInfraLeftStream(ofRectangle(0, ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
+	realSense->drawVideoStream(ofRectangle(0, 0, ofGetWidth(), ofGetHeight()));
+	//realSense->drawVideoStream(ofRectangle(0, 0, ofGetWidth() / 2., ofGetHeight() / 2.));
+	//realSense->drawDepthStream(ofRectangle(ofGetWidth() / 2., 0, ofGetWidth() / 2., ofGetHeight() / 2.));
+	//realSense->drawInfraLeftStream(ofRectangle(0, ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
 
 	mCamera.begin(); 
 
 	ofPushMatrix();
 	ofScale(100, 100, 100);
-	//mRSSDK->draw();
+	//realSense->draw();
 	ofPopMatrix();
 
 	mCamera.end();
@@ -83,7 +84,7 @@ void ofApp::draw()
 
 void ofApp::exit()
 {
-	mRSSDK->stop();
+	realSense->stop();
 }
 
 void ofApp::setupCamera()
