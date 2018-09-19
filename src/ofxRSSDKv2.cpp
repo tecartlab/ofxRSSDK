@@ -96,8 +96,8 @@ namespace ofxRSSDK
 		param_deviceFrameQueSize_mag.set("frame queue size", 16, 0, 32);
 		param_deviceFrameQueSize_mag.addListener(this, &RSDevice::deviceFrameQueSize_mag_p);
 
-		param_deviceProjectorTemparature.set("projector temperature", "");
-		param_deviceAsicTemparature.set("device temperature", "");
+		param_deviceProjectorTemparature.set("projector temp.", "");
+		param_deviceAsicTemparature.set("device temp.", "");
 	}
 
 #pragma region Init
@@ -330,8 +330,8 @@ namespace ofxRSSDK
 			cout << "elapsed time " << lastTime - firstTime  << endl;
 			*/
 			
-			param_deviceProjectorTemparature = ofToString(get_deviceProjectorTemperature()) +  " [degrees]";
-			param_deviceAsicTemparature = ofToString(get_deviceProjectorTemperature()) + " [degrees]";
+			param_deviceProjectorTemparature = ofToString(get_deviceProjectorTemperature()) +  " [deg]";
+			param_deviceAsicTemparature = ofToString(get_deviceProjectorTemperature()) + " [deg]";
 
 			return true;
 		}
