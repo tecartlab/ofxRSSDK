@@ -37,6 +37,8 @@ void ofApp::setup()
 		gui_device.add(realSense->param_deviceExposure_mag);
 		gui_device.add(realSense->param_deviceGain_mag);
 		gui_device.add(realSense->param_deviceFrameQueSize_mag);
+		gui_device.add(realSense->param_deviceAsicTemparature);
+		gui_device.add(realSense->param_deviceProjectorTemparature);
 	}
 
 	realSense->printDeviceInfo();
@@ -50,12 +52,14 @@ void ofApp::update()
 	if (realSense->update(ofxRSSDK::PointCloud::INFRALEFT)) {
 		// if a frame has been updated, the code continues in here,
 		// in case you need to do something special...
+		/*
 		glm::vec2 col = glm::vec2(realSense->getDepthWidth() / 2, realSense->getDepthHeight() / 2);
 		glm::vec3 d_pt = realSense->getSpacePointFromDepthFrameCoord(col);
 		cout << "color pixel x=" << col.x << ", y=" << col.y << endl;
 		cout << "depth pixel x=" << d_pt.x << ", y=" << d_pt.y << ", z =" << d_pt.z << endl;
 		float distance = realSense->getSpaceDistanceFromDepthFrame(col);
 		cout << "distance =" << distance << endl;
+		*/
 	}
 }
 
@@ -70,11 +74,11 @@ void ofApp::draw()
 	realSense->drawDepthStream(ofRectangle(ofGetWidth() / 2., 0, ofGetWidth() / 2., ofGetHeight() / 2.));
 	realSense->drawInfraLeftStream(ofRectangle(0, ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
 
-	mCamera.begin(); 
+	mCamera.begin(ofRectangle(ofGetWidth() / 2., ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
 
 	ofPushMatrix();
 	ofScale(100, 100, 100);
-	//realSense->draw();
+	realSense->draw();
 	ofPopMatrix();
 
 	mCamera.end();

@@ -337,6 +337,28 @@ namespace ofxRSSDK
 		private: void deviceGain_mag_p(int & magnitude);
 		public: ofParameter<int> param_deviceGain_mag; //gain parameter for use with ofxGUI
 
+		/**
+		Current Asic Temperature (degree celsius)
+		@return temperature min=-40| max = 125
+		*/
+		public: int get_deviceAsicTemperature();
+		/**
+		read only temperature parameter for display with ofxGUI
+		this paramter will be updated with each call of the update() function
+		*/
+		public: ofParameter<string> param_deviceAsicTemparature;
+
+		/**
+		Current Projector Temperature (degree celsius)
+		@return temperature min=-40| max = 125
+		*/
+		public: int get_deviceProjectorTemperature();
+		/**
+		read only temperature parameter for display with ofxGUI
+		this paramter will be updated with each call of the update() function
+		*/
+		public: ofParameter<string> param_deviceProjectorTemparature;
+
 		const ofPixels&	getVideoFrame(); 
 		const ofPixels&	getDepthFrame();
 		const ofPixels&	getInfraLeftFrame();

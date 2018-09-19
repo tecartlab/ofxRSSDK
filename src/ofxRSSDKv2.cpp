@@ -95,6 +95,9 @@ namespace ofxRSSDK
 
 		param_deviceFrameQueSize_mag.set("frame queue size", 16, 0, 32);
 		param_deviceFrameQueSize_mag.addListener(this, &RSDevice::deviceFrameQueSize_mag_p);
+
+		param_deviceProjectorTemparature.set("projector temperature", "");
+		param_deviceAsicTemparature.set("device temperature", "");
 	}
 
 #pragma region Init
@@ -327,6 +330,9 @@ namespace ofxRSSDK
 			cout << "elapsed time " << lastTime - firstTime  << endl;
 			*/
 			
+			param_deviceProjectorTemparature = ofToString(get_deviceProjectorTemperature()) +  " [degrees]";
+			param_deviceAsicTemparature = ofToString(get_deviceProjectorTemperature()) + " [degrees]";
+
 			return true;
 		}
 		return false;
@@ -390,6 +396,29 @@ namespace ofxRSSDK
 #pragma endregion
 
 #pragma region Getters
+
+	int RSDevice::get_deviceAsicTemperature()
+	{
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_ASIC_TEMPERATURE))
+		{
+			return (int)rs2DepthSensor.get_option(RS2_OPTION_ASIC_TEMPERATURE);
+		}
+		return 0;
+	}
+
+	int RSDevice::get_deviceProjectorTemperature()
+	{
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_PROJECTOR_TEMPERATURE))
+		{
+			return (int)rs2DepthSensor.get_option(RS2_OPTION_PROJECTOR_TEMPERATURE);
+		}
+		return 0;
+	}
+
 	const ofPixels& RSDevice::getVideoFrame()
 	{
 		return mVideoFrame;

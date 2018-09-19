@@ -16,8 +16,6 @@ public:
 	void draw();
 	void exit();
 
-	void ofApp::draw_pointcloud(float width, float height, rs2::points& points);
-
 	void keyPressed(int key);
 	void keyReleased(int key);
 	void mouseMoved(int x, int y );
