@@ -235,6 +235,16 @@ public:
 				float current_value = sensor.get_option(option_type);
 				std::cout << "       Current Value : " << current_value << std::endl;
 
+				// Get the current value of the option
+				auto range = sensor.get_option_range(option_type);
+				std::cout << "       Value Range : min=" << range.min << "| max = " << range.max << std::endl;
+
+				/*
+				// Get a human readable description of the option
+				description = sensor.get_option_value_description(option_type, 0);
+				std::cout << "       Value Description   : " << description << std::endl;
+				*/
+
 				//To change the value of an option, please follow the change_sensor_option() function
 			}
 			else

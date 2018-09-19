@@ -303,6 +303,40 @@ namespace ofxRSSDK
 		private: void deviceLaser_mag_p(float & magnitude);
 		public: ofParameter<float> param_deviceLaser_mag; //device laser parameter for use with ofxGUI
 
+		/**
+		set auto exposure
+		*/
+		public: void deviceAutoExposure(bool const & enable);
+		private: void deviceAutoExposure_p(bool & enable);
+		public: ofParameter<bool> param_deviceAutoExposure; //exposure parameter for use with ofxGUI
+
+		/**
+		set exposure value
+		@param exposure in microseconds [20 - 166000]
+		*/
+		public: void deviceExposure_mag(int const & magnitude);
+		private: void deviceExposure_mag_p(int & magnitude);
+		public: ofParameter<int> param_deviceExposure_mag; //exposure parameter for use with ofxGUI
+		
+		/**
+		frame que size
+		Max number of frames you can hold at a given time. 
+		Increasing this number will reduce frame drops but increase latency, and vice versa
+		@param frame queue size  [0 - 32]
+		*/
+		public: void deviceFrameQueSize_mag(int const & magnitude);
+		private: void deviceFrameQueSize_mag_p(int & magnitude);
+		public: ofParameter<int> param_deviceFrameQueSize_mag; //exposure parameter for use with ofxGUI
+
+		/**
+		Gain
+		UVC image gain
+		@param gain min=16| max = 248
+		*/
+		public: void deviceGain_mag(int const & magnitude);
+		private: void deviceGain_mag_p(int & magnitude);
+		public: ofParameter<int> param_deviceGain_mag; //gain parameter for use with ofxGUI
+
 		const ofPixels&	getVideoFrame(); 
 		const ofPixels&	getDepthFrame();
 		const ofPixels&	getInfraLeftFrame();

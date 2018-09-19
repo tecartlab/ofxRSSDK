@@ -33,6 +33,10 @@ void ofApp::setup()
 		// the device settings should be loaded/set after the start()
 		gui_device.add(realSense->param_deviceLaser);
 		gui_device.add(realSense->param_deviceLaser_mag);
+		gui_device.add(realSense->param_deviceAutoExposure);
+		gui_device.add(realSense->param_deviceExposure_mag);
+		gui_device.add(realSense->param_deviceGain_mag);
+		gui_device.add(realSense->param_deviceFrameQueSize_mag);
 	}
 
 	realSense->printDeviceInfo();
@@ -61,10 +65,10 @@ void ofApp::draw()
 	ofClear(ofColor::black);
 	ofSetColor(ofColor::white);
 
-	realSense->drawVideoStream(ofRectangle(0, 0, ofGetWidth(), ofGetHeight()));
-	//realSense->drawVideoStream(ofRectangle(0, 0, ofGetWidth() / 2., ofGetHeight() / 2.));
-	//realSense->drawDepthStream(ofRectangle(ofGetWidth() / 2., 0, ofGetWidth() / 2., ofGetHeight() / 2.));
-	//realSense->drawInfraLeftStream(ofRectangle(0, ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
+	//realSense->drawVideoStream(ofRectangle(0, 0, ofGetWidth(), ofGetHeight()));
+	realSense->drawVideoStream(ofRectangle(0, 0, ofGetWidth() / 2., ofGetHeight() / 2.));
+	realSense->drawDepthStream(ofRectangle(ofGetWidth() / 2., 0, ofGetWidth() / 2., ofGetHeight() / 2.));
+	realSense->drawInfraLeftStream(ofRectangle(0, ofGetHeight() / 2., ofGetWidth() / 2., ofGetHeight() / 2.));
 
 	mCamera.begin(); 
 

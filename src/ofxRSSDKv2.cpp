@@ -84,6 +84,17 @@ namespace ofxRSSDK
 		param_deviceLaser_mag.set("laser power", 0.5, 0., 1.0);
 		param_deviceLaser_mag.addListener(this, &RSDevice::deviceLaser_mag_p);
 
+		param_deviceAutoExposure.set("use auto exposure", true);
+		param_deviceAutoExposure.addListener(this, &RSDevice::deviceAutoExposure_p);
+
+		param_deviceExposure_mag.set("manual exposure", 8500, 20, 100000);
+		param_deviceExposure_mag.addListener(this, &RSDevice::deviceExposure_mag_p);
+
+		param_deviceGain_mag.set("image gain", 16, 16, 248);
+		param_deviceGain_mag.addListener(this, &RSDevice::deviceGain_mag_p);
+
+		param_deviceFrameQueSize_mag.set("frame queue size", 16, 0, 32);
+		param_deviceFrameQueSize_mag.addListener(this, &RSDevice::deviceFrameQueSize_mag_p);
 	}
 
 #pragma region Init
@@ -149,6 +160,8 @@ namespace ofxRSSDK
 			// we are setting the depth units to one millimeter (default)
 			auto sensor = rs2Device.first<rs2::depth_sensor>();
 			sensor.set_option(RS2_OPTION_DEPTH_UNITS, 0.001);
+
+			//how_to::get_sensor_option(sensor);
 
 			//float depthScale = get_depth_scale(rs2Device);
 			//cout << "depth scale =" << depthScale << endl;
@@ -546,6 +559,14 @@ namespace ofxRSSDK
 		isUsingFilterDisparity = enable;
 	}
 
+	/////////////////////////////////////////////////////////////
+	//
+	// DEVICE SETTINGS
+	//
+	/////////////////////////////////////////////////////////////
+
+	// LASER
+
 	void RSDevice::deviceLaser_mag(float const & magnitude) {
 		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
 
@@ -573,6 +594,65 @@ namespace ofxRSSDK
 	}
 	void RSDevice::deviceLaser_p(bool & enable) {
 		deviceLaser(enable);
+	}
+
+	// EXPOSURE
+
+	void RSDevice::deviceAutoExposure(bool const & enable) {
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE))
+		{
+			rs2DepthSensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, (enable) ? 1. : 0.); // Enable emitter
+		}
+	}
+	void RSDevice::deviceAutoExposure_p(bool & enable) {
+		deviceAutoExposure(enable);
+	}
+
+	void RSDevice::deviceExposure_mag(int const & magnitude) {
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_EXPOSURE))
+		{
+			// Query min and max values:
+			auto range = rs2DepthSensor.get_option_range(RS2_OPTION_EXPOSURE);
+			if(range.min <= magnitude && magnitude <= range.max)
+				rs2DepthSensor.set_option(RS2_OPTION_EXPOSURE, magnitude);
+		}
+	}
+	void RSDevice::deviceExposure_mag_p(int & magnitude) {
+		deviceExposure_mag(magnitude);
+	}
+
+	void RSDevice::deviceFrameQueSize_mag(int const & magnitude) {
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_FRAMES_QUEUE_SIZE))
+		{
+			// Query min and max values:
+			auto range = rs2DepthSensor.get_option_range(RS2_OPTION_FRAMES_QUEUE_SIZE);
+			if (range.min <= magnitude && magnitude <= range.max)
+				rs2DepthSensor.set_option(RS2_OPTION_FRAMES_QUEUE_SIZE, magnitude);
+		}
+	}
+	void RSDevice::deviceFrameQueSize_mag_p(int & magnitude) {
+		deviceFrameQueSize_mag(magnitude);
+	}
+
+	void RSDevice::deviceGain_mag(int const & magnitude) {
+		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+
+		if (rs2DepthSensor.supports(RS2_OPTION_GAIN))
+		{
+			// Query min and max values:
+			auto range = rs2DepthSensor.get_option_range(RS2_OPTION_GAIN);
+			if (range.min <= magnitude && magnitude <= range.max)
+				rs2DepthSensor.set_option(RS2_OPTION_GAIN, magnitude);
+		}
+	}
+	void RSDevice::deviceGain_mag_p(int & magnitude) {
+		deviceGain_mag(magnitude);
 	}
 
 	int RSDevice::countDevicesAttached()
