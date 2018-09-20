@@ -265,6 +265,8 @@ namespace ofxRSSDK
 
 			// if the point cloud has changed its size, rescale the data container
 			if (length != mPointCloud.getVertices().size()) {
+				// setting also the depth intrinsics when the cloud size changes
+				rs2DepthIntrinsics = rs2Depth.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 				mPointCloud.clear();
 				for (int i = 0; i < length; i++) {
 					mPointCloud.addVertex(glm::vec3(0, 0, 0));
