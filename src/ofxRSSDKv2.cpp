@@ -637,6 +637,7 @@ namespace ofxRSSDK
 			rs2DepthSensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, (enable) ? 1. : 0.); // Enable emitter
 		}
 	}
+
 	void RSDevice::deviceAutoExposure_p(bool & enable) {
 		deviceAutoExposure(enable);
 	}
@@ -672,14 +673,17 @@ namespace ofxRSSDK
 	}
 
 	void RSDevice::deviceGain_mag(int const & magnitude) {
-		auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
+		// we are only setting image gain if auto exposure is off, otherwise we have crashes.
+		if (!param_deviceAutoExposure.get()) {
+			auto rs2DepthSensor = rs2Device.first<rs2::depth_sensor>();
 
-		if (rs2DepthSensor.supports(RS2_OPTION_GAIN))
-		{
-			// Query min and max values:
-			auto range = rs2DepthSensor.get_option_range(RS2_OPTION_GAIN);
-			if (range.min <= magnitude && magnitude <= range.max)
-				rs2DepthSensor.set_option(RS2_OPTION_GAIN, magnitude);
+			if (rs2DepthSensor.supports(RS2_OPTION_GAIN))
+			{
+				// Query min and max values:
+				auto range = rs2DepthSensor.get_option_range(RS2_OPTION_GAIN);
+				if (range.min <= magnitude && magnitude <= range.max)
+					rs2DepthSensor.set_option(RS2_OPTION_GAIN, magnitude);
+			}
 		}
 	}
 	void RSDevice::deviceGain_mag_p(int & magnitude) {
