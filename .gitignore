@@ -10,3 +10,4 @@ example-pointcloud-rgb/.vs/
 *.exp
 *.iobj
 *.ipdb
+*.bag

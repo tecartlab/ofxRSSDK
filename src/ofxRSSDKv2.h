@@ -83,6 +83,13 @@ namespace ofxRSSDK
 		INFRALEFT = 2
 	};
 
+	enum CaptureMode
+	{
+		Capture = 0,
+		Recording = 1,
+		Playback = 2
+	};
+
 	enum FilterPersistency
 	{
 		DISABLED			= 0,	//Persistency filter is not activated and no hole filling occurs.
@@ -127,15 +134,35 @@ namespace ofxRSSDK
 
 		/**
 		Starts the device with these parameters
+		@param _captureMode CaptureMode::xxx capture mode
 		@param device serial
 		@return false if no device is attached
 		*/
-		bool start(const std::string &serial);
+		bool start(int _captureMode, const std::string &serial);
 		/**
 		Starts the first device it finds.
+		@param _captureMode CaptureMode::xxx capture mode
 		@return false if no device is attached
 		*/
-		bool start();
+		bool start(int _captureMode);
+
+		/**
+		Starts the first device it finds and records the data
+		@return false if no device is attached
+		*/
+		bool record();
+
+		/**
+		Starts the first device it find
+		@return false if no device is attached
+		*/
+		bool capture();
+
+		/**
+		Starts the first device it find
+		@return false if no device is attached
+		*/
+		bool playback();
 
 		/**
 		update point cloud. 
@@ -151,6 +178,8 @@ namespace ofxRSSDK
 		bool drawInfraLeftStream(const ofRectangle & rect); // draw the left infrared stream
 
 		bool isRunning();
+
+		public: ofParameter<string> param_recordingPath; //recording file path  (default= ofFilePath::getCurrentExeDir() + "data/pointRecording.bag")
 
 		/**
 		Global setting to enable/disable postprocessing
@@ -446,8 +475,12 @@ namespace ofxRSSDK
 
 		bool
 			mIsInit,
-			mIsRunning;
-		bool 
+			mIsPaused,
+			mIsRunning,
+			mIsCapturing,
+			mIsPlayback,
+			mIsRecording;
+		bool
 			isUsingPostProcessing,
 			isUsingFilterDec, 
 			isUsingFilterSpat, 
@@ -476,7 +509,7 @@ namespace ofxRSSDK
 		rs2::points rs2Points;
 
 		// Declare RealSense pipeline, encapsulating the actual device and sensors
-		rs2::pipeline rs2Pipe;
+		std::shared_ptr<rs2::pipeline> rs2Pipe;
 
 		// Profile
 		rs2::pipeline_profile rs2PipeLineProfile;

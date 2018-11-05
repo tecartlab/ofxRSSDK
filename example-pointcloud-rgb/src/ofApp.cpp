@@ -29,7 +29,7 @@ void ofApp::setup()
 
 	gui_device.setup("Device", "deviceSettings", 200, 0);
 
-	if (realSense->start()) {
+	if (realSense->capture()) {
 		// the device settings should be loaded/set after the start()
 		gui_device.add(realSense->param_deviceLaser);
 		gui_device.add(realSense->param_deviceLaser_mag);

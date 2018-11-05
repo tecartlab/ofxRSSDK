@@ -36,6 +36,12 @@ namespace ofxRSSDK
 		isUsingFilterDisparity = false;
 		isUsingPostProcessing = false;
 
+		mIsRunning = false;
+		mIsCapturing = false;
+		mIsPaused = false;
+		mIsPlayback = false;
+		mIsRecording = false;
+
 		depthWidth = 848;
 		depthHeight = 480;
 		videoWidth = 1280;
@@ -98,6 +104,11 @@ namespace ofxRSSDK
 
 		param_deviceProjectorTemparature.set("projector temp.", "");
 		param_deviceAsicTemparature.set("device temp.", "");
+
+		param_recordingPath.set("recordingPath", ofFilePath::getCurrentExeDir() + "data/pointRecording.bag");
+
+		// create new pipeline
+		rs2Pipe = std::make_shared<rs2::pipeline>();
 	}
 
 #pragma region Init
@@ -109,10 +120,25 @@ namespace ofxRSSDK
 		mPointCloudRange = ofVec2f(pMin,pMax);
 	}
 
-	bool RSDevice::start()
+	bool RSDevice::capture()
+	{
+		return start(CaptureMode::Capture);
+	}
+
+	bool RSDevice::record()
+	{
+		return start(CaptureMode::Recording);
+	}
+
+	bool RSDevice::playback()
+	{
+		return start(CaptureMode::Playback);
+	}
+
+	bool RSDevice::start(int _captureMode)
 	{
 		if (countDevicesAttached()) {
-			return start(how_to::get_device_serial(how_to::get_device(0)));
+			return start(_captureMode, how_to::get_device_serial(how_to::get_device(0)));
 		}
 		else {
 			ofLogError("Cannot start device. No devices attaches.");
@@ -120,8 +146,24 @@ namespace ofxRSSDK
 		return false;
 	}
 
-	bool RSDevice::start(const std::string &serial)
+	bool RSDevice::start(int _captureMode, const std::string &serial)
 	{
+		if (mIsRunning) { // if the device has already been started, we stop it before restarting again
+			stop();
+		}
+
+		switch (_captureMode){
+		case CaptureMode::Capture: 
+			mIsCapturing = true;
+			break;
+		case CaptureMode::Playback:
+			mIsPlayback = true;
+			break;
+		case CaptureMode::Recording:
+			mIsRecording = true;
+			break;
+		}
+
 		if (countDevicesAttached()) {
 			mPointCloud.clear();
 			mPointCloud.setMode(OF_PRIMITIVE_POINTS);
@@ -141,13 +183,19 @@ namespace ofxRSSDK
 												 // For the color stream, set format to RGBA
 												 // To allow blending of the color frame on top of the depth frame
 			//cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGB8);
+
+			cfg.enable_device(serial);
 			cfg.enable_stream(RS2_STREAM_DEPTH, depthWidth, depthHeight, RS2_FORMAT_Z16, 30);
 			cfg.enable_stream(RS2_STREAM_COLOR, videoWidth, videoHeight, RS2_FORMAT_RGB8, 30);
 			cfg.enable_stream(RS2_STREAM_INFRARED, 1);
 
-			cfg.enable_device(serial);
-
-			rs2PipeLineProfile = rs2Pipe.start(cfg);
+			if (mIsPlayback) {
+				cfg.enable_device_from_file(param_recordingPath.get());
+			}else if (mIsRecording) {
+				cfg.enable_record_to_file(param_recordingPath.get());
+			}
+				
+			rs2PipeLineProfile = rs2Pipe->start(cfg);
 
 			rs2Device = rs2PipeLineProfile.get_device();
 
@@ -160,17 +208,19 @@ namespace ofxRSSDK
 			auto infra_stream = rs2PipeLineProfile.get_stream(RS2_STREAM_INFRARED).as<rs2::video_stream_profile>();
 			rsInfraLeftIntrinsics = infra_stream.get_intrinsics();
 
-			// we are setting the depth units to one millimeter (default)
-			auto sensor = rs2Device.first<rs2::depth_sensor>();
-			sensor.set_option(RS2_OPTION_DEPTH_UNITS, 0.001);
+			if (mIsCapturing) {
+				// we are setting the depth units to one millimeter (default)
+				auto sensor = rs2Device.first<rs2::depth_sensor>();
+				sensor.set_option(RS2_OPTION_DEPTH_UNITS, 0.001);
+
+				// Capture 30 frames to give autoexposure, etc. a chance to settle
+				for (auto i = 0; i < 30; ++i) rs2Pipe->wait_for_frames();
+			}
 
 			//how_to::get_sensor_option(sensor);
 
 			//float depthScale = get_depth_scale(rs2Device);
 			//cout << "depth scale =" << depthScale << endl;
-
-			// Capture 30 frames to give autoexposure, etc. a chance to settle
-			for (auto i = 0; i < 30; ++i) rs2Pipe.wait_for_frames();
 
 			mIsRunning = true;
 
@@ -182,6 +232,20 @@ namespace ofxRSSDK
 		return false;
 	}
 
+	bool RSDevice::stop()
+	{
+		rs2Pipe->stop();
+		// create new pipeline for next purpose
+		rs2Pipe = std::make_shared<rs2::pipeline>();
+
+		mIsRunning = false;
+		mIsCapturing = false;
+		mIsPaused = false;
+		mIsPlayback = false;
+		mIsRecording = false;
+		return true;
+	}
+
 	bool RSDevice::isRunning() {
 		return mIsRunning;
 	}
@@ -189,7 +253,7 @@ namespace ofxRSSDK
 	bool RSDevice::update(int color)
 	{
 		// polling for the next frame
-		if (rs2Pipe.poll_for_frames(&rs2FrameSet))
+		if (rs2Pipe->poll_for_frames(&rs2FrameSet))
 		{
 			// if there is a frame...
 
@@ -340,13 +404,6 @@ namespace ofxRSSDK
 		return false;
 	}
 
-	bool RSDevice::stop()
-	{
-		rs2Pipe.stop();
-		mIsRunning = false;
-		return true;
-		
-	}
 
 #pragma region Enable
 
