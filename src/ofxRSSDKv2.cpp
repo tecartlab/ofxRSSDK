@@ -790,5 +790,11 @@ namespace ofxRSSDK
 		}
 		throw std::runtime_error("Device does not have a depth sensor");
 	}
+
+	void RSDevice::hardwareReset()
+	{
+		how_to::hardware_reset_device();
+	}
+
 }
 #pragma endregion

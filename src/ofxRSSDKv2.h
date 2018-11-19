@@ -130,6 +130,8 @@ namespace ofxRSSDK
 		*/
 		void checkConnectedDialog();
 
+		void hardwareReset();
+
 		void setPointCloudRange(float pMin, float pMax);
 
 		/**

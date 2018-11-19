@@ -8,6 +8,9 @@ void ofApp::setup()
 	realSense = RSDevice::createUniquePtr();
 
 	realSense->checkConnectedDialog();
+
+	realSense->hardwareReset();
+
 	ofLogNotice("Device detected..");
 
 	gui_post.setup("PostProcessing", "postprocessingSetup", 0, 0); // most of the time you don't need a name but don't forget to call setup

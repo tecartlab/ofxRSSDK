@@ -152,6 +152,46 @@ public:
 		return sn;
 	}
 
+	static void hardware_reset_device()
+	{
+		// First, create a rs2::context.
+		// The context represents the current platform with respect to connected devices
+		rs2::context ctx;
+
+		// Using the context we can get all connected devices in a device list
+		rs2::device_list devices = ctx.query_devices();
+
+		rs2::device selected_device;
+		if (devices.size() == 0)
+		{
+			std::cerr << "No device reseted, please connect a RealSense device" << std::endl;
+			return;
+		}
+		else
+		{
+			std::cout << "Reseting the following devices:\n" << std::endl;
+
+			// device_list is a "lazy" container of devices which allows
+			//The device list provides 2 ways of iterating it
+			//The first way is using an iterator (in this case hidden in the Range-based for loop)
+			int index = 0;
+			for (rs2::device device : devices)
+			{
+
+				std::cout << "  " << index++ << " : " << get_device_name(device) << std::endl;
+				device.hardware_reset();
+
+			}
+
+			rs2::device_hub hub(ctx);
+
+			selected_device = hub.wait_for_device(); //Note that device hub will get any device, if you have more than 1 connected it could return the other device
+			std::cout << "  " << index++ << " : " << get_device_name(selected_device) << std::endl;
+
+		}
+
+	}
+
 	static std::string get_device_name(const rs2::device& dev)
 	{
 		// Each device provides some information on itself, such as name:
