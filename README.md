@@ -35,7 +35,7 @@ Untested:
 * Intel® RealSense™ SDK 2.0 (build 2.16.0) https://github.com/IntelRealSense/librealsense
 * Openframeworks release 0.10.0 [download page](http://openframeworks.cc/download).
 * Openframeworks addon [ofxRSSDK](https://github.com/tecartlab/ofxRSSDK)
-* Openframeworks addon [ofxGuiExtended](https://github.com/frauzufall/ofxGuiExtended)
+* Openframeworks addon [ofxGuiExtended](https://github.com/maybites/ofxGuiExtended)(use my fork)
 
 ### Instructions
 
