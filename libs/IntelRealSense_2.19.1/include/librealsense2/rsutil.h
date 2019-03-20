@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <math.h>
 
-
 /* Given a point in 3D space, compute the corresponding pixel coordinates in an image with no distortion or forward distortion coefficients produced by the same camera */
 static void rs2_project_point_to_pixel(float pixel[2], const struct rs2_intrinsics * intrin, const float point[3])
 {
@@ -87,7 +86,7 @@ static void rs2_fov(const struct rs2_intrinsics * intrin, float to_fov[2])
 static void next_pixel_in_line(float curr[2], const float start[2], const float end[2])
 {
     float line_slope = (end[1] - start[1]) / (end[0] - start[0]);
-    if (abs(end[0] - curr[0]) > abs(end[1] - curr[1]))
+    if (fabs(end[0] - curr[0]) > fabs(end[1] - curr[1]))
     {
         curr[0] = end[0] > curr[0] ? curr[0] + 1 : curr[0] - 1;
         curr[1] = end[1] - line_slope * (end[0] - curr[0]);
@@ -108,15 +107,15 @@ static bool is_pixel_in_line(const float curr[2], const float start[2], const fl
 static void adjust_2D_point_to_boundary(float p[2], int width, int height)
 {
     if (p[0] < 0) p[0] = 0;
-    if (p[0] > width) p[0] = width;
+    if (p[0] > width) p[0] = (float)width;
     if (p[1] < 0) p[1] = 0;
-    if (p[1] > height) p[1] = height;
+    if (p[1] > height) p[1] = (float)height;
 }
 
 /* Find projected pixel with unknown depth search along line. */
 static void rs2_project_color_pixel_to_depth_pixel(float to_pixel[2],
     const uint16_t* data, float depth_scale,
-    float depth_min, float depth_max, 
+    float depth_min, float depth_max,
     const struct rs2_intrinsics* depth_intrin,
     const struct rs2_intrinsics* color_intrin,
     const struct rs2_extrinsics* color_to_depth,
@@ -142,7 +141,7 @@ static void rs2_project_color_pixel_to_depth_pixel(float to_pixel[2],
     for (float p[2] = { start_pixel[0], start_pixel[1] }; is_pixel_in_line(p, start_pixel, end_pixel); next_pixel_in_line(p, start_pixel, end_pixel))
     {
         float depth = depth_scale * data[(int)p[1] * depth_intrin->width + (int)p[0]];
-        if (depth == 0) 
+        if (depth == 0)
             continue;
 
         float projected_pixel[2] = { 0 }, point[3] = { 0 }, transformed_point[3] = { 0 };

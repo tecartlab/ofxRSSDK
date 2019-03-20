@@ -32,9 +32,7 @@ Untested:
 ### Dependecies
 
 * Microsoft Visual Studio Community edition 2017 https://visualstudio.microsoft.com/de/downloads/
-* Intel® RealSense™ SDK 2.0 (build 2.16.0) https://github.com/IntelRealSense/librealsense
 * Openframeworks release 0.10.0 [download page](http://openframeworks.cc/download).
-* Openframeworks addon [ofxRSSDK](https://github.com/tecartlab/ofxRSSDK)
 * Openframeworks addon [ofxGuiExtended](https://github.com/maybites/ofxGuiExtended)(use my fork)
 
 ### Instructions
@@ -44,7 +42,7 @@ drop this repositoriy into the \<openframeworksfolder>/apps/\<yourappfolder>
 drop the addons into the \<openframeworksfolder>/addons/ folder
 
 #### Visual Studio
-Examles require to be linked to the installed RealSense SDK. All the examples assume the SDK is installed under C:\Program Files(x86)\Intel RealSense SDK 2.0
+Examles have a realtive path to the RealSenseSDK 2.19.1 inside the ofxRSSDK/libs folder.
 
 if otherwise, change the following:
 
@@ -56,3 +54,5 @@ if otherwise, change the following:
 Martin Froehlich
 
 this addon is based on https://github.com/SethGibson/ofxRSSDK, however it has been heavily altered on order to make it compatible with the current RSSDK.
+
+contains the relevant libraries/includes from Intel® RealSense™ SDK 2.0 (build 2.19.1) https://github.com/IntelRealSense/librealsense

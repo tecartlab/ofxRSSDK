@@ -10,22 +10,15 @@
 
 namespace ofxRSSDK
 {	
-	Disparity::~Disparity()
-	{
-		delete filter_in;
-		delete filter_out;
-	}
-
-	Disparity::Disparity()
-	{
-		filter_in = new rs2::disparity_transform(true);
-		filter_out = new rs2::disparity_transform(false);
-	}
 
 	RSDevice::~RSDevice(){
 	}
 
-	RSDevice::RSDevice(){
+	RSDevice::RSDevice()
+		:rs2Filter_DispIn(true)
+		,rs2Filter_DispOut(false)
+
+	{
 		mIsInit = false;
 		mIsRunning = false;
 		mPointCloudRange = ofVec2f(0,3000);
@@ -163,7 +156,6 @@ namespace ofxRSSDK
 			mIsRecording = true;
 			break;
 		}
-
 		if (countDevicesAttached()) {
 			mPointCloud.clear();
 			mPointCloud.setMode(OF_PRIMITIVE_POINTS);
@@ -225,10 +217,12 @@ namespace ofxRSSDK
 			mIsRunning = true;
 
 			return true;
+
 		}
 		else {
 			ofLogError("Cannot start device. No devices attaches.");
 		}
+
 		return false;
 	}
 
@@ -260,13 +254,24 @@ namespace ofxRSSDK
 			// get the depth data from the frame
 			rs2Depth = rs2FrameSet.first(RS2_STREAM_DEPTH);
 
+			/* Apply filters.
+			The implemented flow of the filters pipeline is in the following order:
+			1. apply decimation filter
+			2. apply threshold filter
+			3. transform the scene into disparity domain
+				4. apply spatial filter
+				5. apply temporal filter
+			6. revert the results back (if step Disparity filter was applied
+				to depth domain (each post processing block is optional and can be applied independantly).
+			*/
+
 			// apply postprocessing filters on the depth data
 			if (isUsingPostProcessing) {
 				if (isUsingFilterDec) {
 					rs2Depth = rs2Filter_dec.process(rs2Depth);
 				}
 				if (isUsingFilterDisparity) {
-					rs2Depth = rs2Filter_disparity.filter_in->process(rs2Depth);
+					rs2Depth = rs2Filter_DispIn.process(rs2Depth);
 				}
 				if (isUsingFilterSpat) {
 					rs2Depth = rs2Filter_spat.process(rs2Depth);
@@ -275,7 +280,7 @@ namespace ofxRSSDK
 					rs2Depth = rs2Filter_temp.process(rs2Depth);
 				}
 				if (isUsingFilterDisparity) {
-					rs2Depth = rs2Filter_disparity.filter_out->process(rs2Depth);
+					rs2Depth = rs2Filter_DispOut.process(rs2Depth);
 				}
 			}
 

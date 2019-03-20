@@ -272,7 +272,6 @@ namespace rs2
         * \return rs2_motion_device_intrtinsic - stream motion intrinsics
         */
         rs2_motion_device_intrinsic get_motion_intrinsics() const
-
         {
             rs2_error* e = nullptr;
             rs2_motion_device_intrinsic intrin;
@@ -282,15 +281,15 @@ namespace rs2
         }
     };
 
+
     /**
-    Interface for frame processing functionality
+    Interface for frame filtering functionality
     */
-    class process_interface
+    class filter_interface
     {
     public:
         virtual rs2::frame process(rs2::frame frame) const = 0;
-        virtual rs2_processing_block* get() const = 0;
-        virtual ~process_interface() = default;
+        virtual ~filter_interface() = default;
     };
 
     class frame
@@ -304,16 +303,16 @@ namespace rs2
         * Base class for multiple frame extensions with internal frame handle
         * \param[in] rs2_frame frame_ref - internal frame instance
         */
-        frame(rs2_frame* frame_ref) : frame_ref(frame_ref)
+        frame(rs2_frame* ref) : frame_ref(ref)
         {
 #ifdef _DEBUG
-            if (frame_ref)
+            if (ref)
             {
                 rs2_error* e = nullptr;
-                auto r = rs2_get_frame_number(frame_ref, &e);
+                auto r = rs2_get_frame_number(ref, &e);
                 if (!e)
                     frame_number = r;
-                auto s = rs2_get_frame_stream_profile(frame_ref, &e);
+                auto s = rs2_get_frame_stream_profile(ref, &e);
                 if (!e)
                     profile = stream_profile(s);
             }
@@ -506,9 +505,9 @@ namespace rs2
         rs2_frame* get() const { return frame_ref; }
         explicit operator rs2_frame*() { return frame_ref; }
 
-        frame apply_filter(process_interface& processing_block)
+        frame apply_filter(filter_interface& filter)
         {
-            return processing_block.process(*this);
+            return filter.process(*this);
         }
 
     protected:
@@ -656,7 +655,6 @@ namespace rs2
 
             if (get())
             {
-                rs2_error* e = nullptr;
                 _size = rs2_get_frame_points_count(get(), &e);
                 error::handle(e);
             }
@@ -791,7 +789,7 @@ namespace rs2
         * Retrieve back the motion data from IMU sensor
         * \return rs2_vector - 3D vector in Euclidean coordinate space.
         */
-        rs2_vector get_motion_data()
+        rs2_vector get_motion_data() const
         {
             auto data = reinterpret_cast<const float*>(get_data());
             return rs2_vector{ data[0], data[1], data[2] };
@@ -816,7 +814,7 @@ namespace rs2
             error::handle(e);
         }
         /**
-        * Retrieve back the pose data from IMU sensor
+        * Retrieve back the pose data from T2xx position tracking sensor
         * \return rs2_pose - orientation and velocity data.
         */
         rs2_pose get_pose_data()
@@ -853,7 +851,6 @@ namespace rs2
 
             if (get())
             {
-                rs2_error* e = nullptr;
                 _size = rs2_embedded_frames_count(get(), &e);
                 error::handle(e);
             }
@@ -868,10 +865,10 @@ namespace rs2
         frame first_or_default(rs2_stream s, rs2_format f = RS2_FORMAT_ANY) const
         {
             frame result;
-            foreach([&result, s, f](frame frame) {
-                if (!result && frame.get_profile().stream_type() == s && (f == RS2_FORMAT_ANY || f == frame.get_profile().format()))
+            foreach([&result, s, f](frame frm) {
+                if (!result && frm.get_profile().stream_type() == s && (f == RS2_FORMAT_ANY || f == frm.get_profile().format()))
                 {
-                    result = std::move(frame);
+                    result = std::move(frm);
                 }
             });
             return result;
@@ -884,9 +881,9 @@ namespace rs2
         */
         frame first(rs2_stream s, rs2_format f = RS2_FORMAT_ANY) const
         {
-            auto frame = first_or_default(s, f);
-            if (!frame) throw error("Frame of requested stream type was not found!");
-            return frame;
+            auto frm = first_or_default(s, f);
+            if (!frm) throw error("Frame of requested stream type was not found!");
+            return frm;
         }
 
         /**
@@ -928,13 +925,58 @@ namespace rs2
             }
             else
             {
-                foreach([&f, index](const frame& frame) {
-                    if (frame.get_profile().stream_type() == RS2_STREAM_INFRARED && frame.get_profile().stream_index() == index)
-                        f = frame;
+                foreach([&f, index](const frame& frm) {
+                    if (frm.get_profile().stream_type() == RS2_STREAM_INFRARED &&
+                        frm.get_profile().stream_index() == index) f = frm;
                 });
             }
             return f;
         }
+
+        /**
+        * Retrieve the fisheye monochrome video frame
+        * \param[in] size_t index
+        * \return video_frame - the fisheye frame denoted by index.
+        */
+        video_frame get_fisheye_frame(const size_t index = 0) const
+        {
+            frame f;
+            if (!index)
+            {
+                f = first_or_default(RS2_STREAM_FISHEYE);
+            }
+            else
+            {
+                foreach([&f, index](const frame& frm) {
+                    if (frm.get_profile().stream_type() == RS2_STREAM_FISHEYE &&
+                        frm.get_profile().stream_index() == index) f = frm;
+                });
+            }
+            return f;
+        }
+
+        /**
+        * Retrieve the pose frame
+        * \param[in] size_t index
+        * \return pose_frame - the sensor's positional data
+        */
+        pose_frame get_pose_frame(const size_t index = 0) const
+        {
+            frame f;
+            if (!index)
+            {
+                f = first_or_default(RS2_STREAM_POSE);
+            }
+            else
+            {
+                foreach([&f, index](const frame& frm) {
+                    if (frm.get_profile().stream_type() == RS2_STREAM_POSE &&
+                        frm.get_profile().stream_index() == index) f = frm;
+                });
+            }
+            return f.as<pose_frame>();
+        }
+
         /**
         * Return the size of the frameset
         * \return size_t - frameset size.
@@ -979,7 +1021,7 @@ namespace rs2
             throw error("Requested index is out of range!");
         }
 
-        class iterator
+        class iterator : public std::iterator<std::forward_iterator_tag, frame>
         {
         public:
             iterator(const frameset* owner, size_t index = 0) : _index(index), _owner(owner) {}
@@ -999,6 +1041,19 @@ namespace rs2
         size_t _size;
     };
 
+    template<class T>
+    class frame_callback : public rs2_frame_callback
+    {
+        T on_frame_function;
+    public:
+        explicit frame_callback(T on_frame) : on_frame_function(on_frame) {}
 
+        void on_frame(rs2_frame* fref) override
+        {
+            on_frame_function(frame{ fref });
+        }
+
+        void release() override { delete this; }
+    };
 }
 #endif // LIBREALSENSE_RS2_FRAME_HPP

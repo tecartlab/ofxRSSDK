@@ -40,9 +40,9 @@ typedef enum rs2_frame_metadata_value
     RS2_FRAME_METADATA_BACKEND_TIMESTAMP                    , /**< Timestamp get from uvc driver. usec*/
     RS2_FRAME_METADATA_ACTUAL_FPS                           , /**< Actual fps */
     RS2_FRAME_METADATA_FRAME_LASER_POWER                    , /**< Laser power value 0-360. */
-    RS2_FRAME_METADATA_FRAME_LASER_POWER_MODE               , /**< Laser power mode. Zero corresponds to Laser power switched off and one for switched on. */    
+    RS2_FRAME_METADATA_FRAME_LASER_POWER_MODE               , /**< Laser power mode. Zero corresponds to Laser power switched off and one for switched on. */
     RS2_FRAME_METADATA_EXPOSURE_PRIORITY                    , /**< Exposure priority. */
-    RS2_FRAME_METADATA_EXPOSURE_ROI_LEFT                    , /**< Left region of interest for the auto exposure Algorithm. */          
+    RS2_FRAME_METADATA_EXPOSURE_ROI_LEFT                    , /**< Left region of interest for the auto exposure Algorithm. */
     RS2_FRAME_METADATA_EXPOSURE_ROI_RIGHT                   , /**< Right region of interest for the auto exposure Algorithm. */
     RS2_FRAME_METADATA_EXPOSURE_ROI_TOP                     , /**< Top region of interest for the auto exposure Algorithm. */
     RS2_FRAME_METADATA_EXPOSURE_ROI_BOTTOM                  , /**< Bottom region of interest for the auto exposure Algorithm. */
@@ -61,44 +61,6 @@ typedef enum rs2_frame_metadata_value
 } rs2_frame_metadata_value;
 const char* rs2_frame_metadata_to_string(rs2_frame_metadata_value metadata);
 const char* rs2_frame_metadata_value_to_string(rs2_frame_metadata_value metadata);
-
-/** \brief 3D coordinates with origin at topmost left corner of the lense,
-     with positive Z pointing away from the camera, positive X pointing camera right and positive Y pointing camera down */
-typedef struct rs2_vertex
-{
-    float xyz[3];
-} rs2_vertex;
-
-/** \brief Pixel location within 2D image. (0,0) is the topmost, left corner. Positive X is right, positive Y is down */
-typedef struct rs2_pixel
-{
-    int ij[2];
-} rs2_pixel;
-
-/** \brief 3D vector in Euclidean coordinate space */
-typedef struct rs2_vector
-{
-    float x, y, z;
-}rs2_vector;
-
-/** \brief Quaternion used to represent rotation  */
-typedef struct rs2_quaternion
-{
-    float x, y, z, w;
-}rs2_quaternion;
-
-typedef struct rs2_pose
-{
-    rs2_vector      translation;          /**< X, Y, Z values of translation, in meters (relative to initial position)                                    */
-    rs2_vector      velocity;             /**< X, Y, Z values of velocity, in meter/sec                                                                   */
-    rs2_vector      acceleration;         /**< X, Y, Z values of acceleration, in meter/sec^2                                                             */
-    rs2_quaternion  rotation;             /**< Qi, Qj, Qk, Qr components of rotation as represented in quaternion rotation (relative to initial position) */
-    rs2_vector      angular_velocity;     /**< X, Y, Z values of angular velocity, in radians/sec                                                         */
-    rs2_vector      angular_acceleration; /**< X, Y, Z values of angular acceleration, in radians/sec^2                                                   */
-    unsigned int    tracker_confidence;   /**< pose data confidence 0x0 - Failed, 0x1 - Low, 0x2 - Medium, 0x3 - High                                     */
-    unsigned int    mapper_confidence;    /**< pose data confidence 0x0 - Failed, 0x1 - Low, 0x2 - Medium, 0x3 - High                                     */
-} rs2_pose;
-
 
 /**
 * retrieve metadata from frame handle

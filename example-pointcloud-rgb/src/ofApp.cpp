@@ -9,10 +9,9 @@ void ofApp::setup()
 
 	realSense->checkConnectedDialog();
 
-	realSense->hardwareReset();
+	//realSense->hardwareReset();
 
 	ofLogNotice("Device detected..");
-
 	gui_post.setup("PostProcessing", "postprocessingSetup", 0, 0); // most of the time you don't need a name but don't forget to call setup
 	gui_post.add(realSense->param_usePostProcessing);
 	gui_post.add(realSense->param_filterDecimation);

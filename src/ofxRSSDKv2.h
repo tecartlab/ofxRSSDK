@@ -8,6 +8,7 @@
 #include <memory>
 #include "ofMain.h"
 #include <librealsense2/rs.hpp> // Include RealSense Cross Platform API 
+#include <librealsense2/hpp/rs_processing.hpp>
 #include <librealsense2/rsutil.h> // Include RealSense Cross Platform API 
 // configure in windows -> project properties -> C/C++ -> General -> additional include directories -> SDK include folder
 
@@ -101,18 +102,6 @@ namespace ofxRSSDK
 		VALID_IN_1_OF_LAST_5 = 6,	//Activated if the pixel was valid in one out of the last 5 frames
 		VALID_IN_1_OF_LAST_8 = 7,	//Activated if the pixel was valid in one out of the last 8 frames
 		INDEFINITLY			= 8		//Persistency will be imposed regardless of the stored history(most aggressive filtering)
-	};
-
-	/**
-	Class to encapsulate a filter alongside its options
-	*/
-	class Disparity
-	{
-	public:
-		Disparity();
-		~Disparity();
-		rs2::process_interface *filter_in;           //The filter in use
-		rs2::process_interface *filter_out;           //The filter in use
 	};
 
 	class RSDevice
@@ -534,7 +523,8 @@ namespace ofxRSSDK
 		rs2::spatial_filter rs2Filter_spat;
 		rs2::temporal_filter rs2Filter_temp;
 
-		Disparity rs2Filter_disparity;
+		rs2::disparity_transform rs2Filter_DispIn;
+		rs2::disparity_transform rs2Filter_DispOut;
 
 		ofMesh mPointCloud;
 
