@@ -11,3 +11,6 @@ example-pointcloud-rgb/.vs/
 *.iobj
 *.ipdb
 *.bag
+example-pointcloud-rgb/bin/example-pointcloud-rgb.*
+example-pointcloud-rgb/bin/example-pointcloud-rgb_debug.*
+*.user
