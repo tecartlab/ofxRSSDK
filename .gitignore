@@ -14,3 +14,6 @@ example-pointcloud-rgb/.vs/
 example-pointcloud-rgb/bin/example-pointcloud-rgb.*
 example-pointcloud-rgb/bin/example-pointcloud-rgb_debug.*
 *.user
+example-pointcloud-rgb/bin/fmodex64.dll
+example-pointcloud-rgb/bin/fmodexL64.dll
+example-pointcloud-rgb/bin/FreeImage.dll
